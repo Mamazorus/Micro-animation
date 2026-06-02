@@ -1,0 +1,350 @@
+/* ─── Layout ──────────────────────────────────────────────────────────── */
+.og-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 48px 24px;
+  background: #07060e;
+  min-height: 100svh;
+  box-sizing: border-box;
+}
+
+.og-hint {
+  font-size: 13px;
+  color: #a9a8b8;
+  letter-spacing: 0.04em;
+  font-family: system-ui, sans-serif;
+  margin: 0;
+}
+
+.og-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 400px);
+  gap: 32px;
+}
+
+/* ─── Card shell ──────────────────────────────────────────────────────── */
+.og-card {
+  position: relative;
+  width: 400px;
+  height: 400px;
+  border-radius: 48px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  background: #161616;
+  color: white;
+
+  box-shadow:
+    0px 4px 35px rgba(172, 165, 245, 0.12),
+    inset 0px 0px 85px rgba(0, 0, 0, 0.22),
+    inset 0px -8px 22px rgba(172, 165, 245, 0.1),
+    inset 0px 8px 22px rgba(172, 165, 245, 0.3);
+
+  transition:
+    background 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.4s ease,
+    transform 0.18s ease;
+}
+
+.og-card:hover {
+  transform: scale(1.025);
+  box-shadow:
+    0px 4px 35px rgba(172, 165, 245, 0.32),
+    inset 0px 0px 85px rgba(0, 0, 0, 0.22),
+    inset 0px -8px 22px rgba(172, 165, 245, 0.1),
+    inset 0px 8px 22px rgba(172, 165, 245, 0.3);
+}
+
+.og-card:active {
+  transform: scale(0.975);
+}
+
+.og-card--active {
+  color: #7d74eb;
+  background: #0b091b;
+  box-shadow:
+    0px 4px 60px rgba(107, 95, 238, 0.55),
+    inset 0px 0px 85px rgba(0, 0, 0, 0.22),
+    inset 0px -8px 22px rgba(172, 165, 245, 0.15),
+    inset 0px 8px 22px rgba(172, 165, 245, 0.35);
+}
+
+/* ─── Ambient glow ellipses ───────────────────────────────────────────── */
+.og-glow {
+  position: absolute;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0.3;
+  transition: opacity 0.45s ease;
+}
+
+.og-card--active .og-glow { opacity: 0.65; }
+
+.og-glow--top {
+  width: 236px; height: 178px;
+  left: 111px; top: 83px;
+  transform: rotate(90deg);
+}
+
+.og-glow--bot {
+  width: 236px; height: 100px;
+  left: 83px; top: 382px;
+}
+
+.og-halo {
+  position: absolute;
+  width: 236px; height: 399px;
+  left: 83px; top: 83px;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.og-card--active .og-halo { opacity: 0.7; }
+
+/* ─── Shared icon base ────────────────────────────────────────────────── */
+.og-icon {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+/* <img>-based icons: white → violet via filter */
+img.og-icon {
+  filter: brightness(0) invert(1);
+  transition: filter 0.4s ease;
+}
+
+.og-card--active img.og-icon {
+  filter: brightness(0) saturate(100%)
+    invert(50%) sepia(60%)
+    saturate(500%) hue-rotate(222deg)
+    brightness(108%);
+}
+
+/* SVG inline icons: use currentColor (set on .og-card) */
+svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DEV </>
+   Chevron gauche recule à gauche, droit à droite, slash tourne.
+══════════════════════════════════════════════════════════════════════════ */
+.og-icon--dev {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 216px;
+  height: 112px;
+}
+
+.dev-chevron-l,
+.dev-chevron-r,
+.dev-slash {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* On active : lancer l'animation une fois */
+.og-card--active .dev-chevron-l { animation: dev-chevron-l 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.og-card--active .dev-chevron-r { animation: dev-chevron-r 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.og-card--active .dev-slash      { animation: dev-slash     0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+@keyframes dev-chevron-l {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(-22px); }
+  100% { transform: translateX(0); }
+}
+@keyframes dev-chevron-r {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(22px); }
+  100% { transform: translateX(0); }
+}
+@keyframes dev-slash {
+  0%   { transform: rotate(0deg)   scaleY(1); }
+  30%  { transform: rotate(20deg)  scaleY(0.85); }
+  70%  { transform: rotate(-10deg) scaleY(1.08); }
+  100% { transform: rotate(0deg)   scaleY(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GRAPHIC DESIGN — plume + tracé GSAP MotionPath
+══════════════════════════════════════════════════════════════════════════ */
+.og-icon--graphic {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 226px;
+  height: 202px;
+}
+
+/* L'origine du groupe graphic-pen est la pointe de la plume (0,0 local).
+   GSAP MotionPath positionne ce point sur chaque point du tracé. */
+.graphic-pen {
+  transform-origin: 0px 0px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FINANCE — barres
+   Chaque barre grandit depuis le bas en stagger.
+══════════════════════════════════════════════════════════════════════════ */
+.og-icon--finance {
+  left: 134px; top: 113px;
+  width: 131px; height: 173px;
+}
+
+.finance-bar {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+}
+
+.og-card--active .finance-bar--1 { animation: bar-grow 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.00s both; }
+.og-card--active .finance-bar--2 { animation: bar-grow 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.10s both; }
+.og-card--active .finance-bar--3 { animation: bar-grow 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.20s both; }
+
+@keyframes bar-grow {
+  0%   { transform: scaleY(0); opacity: 0; }
+  60%  { transform: scaleY(1.1); opacity: 1; }
+  100% { transform: scaleY(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   UI/UX — cadre artboard
+   Top+Bottom s'écartent ensemble, puis Left+Right 100ms après.
+══════════════════════════════════════════════════════════════════════════ */
+.og-icon--uiux {
+  left: 83px; top: 82px;
+  width: 236px; height: 236px;
+}
+
+.frame-bar {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.og-card--uiux.og-card--active .frame-bar--top    { animation: frame-top    0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.00s both; }
+.og-card--uiux.og-card--active .frame-bar--bottom { animation: frame-bottom 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.00s both; }
+.og-card--uiux.og-card--active .frame-bar--left   { animation: frame-left   0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.10s both; }
+.og-card--uiux.og-card--active .frame-bar--right  { animation: frame-right  0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.10s both; }
+
+@keyframes frame-right {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(12px); }
+  100% { transform: translateX(0); }
+}
+@keyframes frame-left {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(-12px); }
+  100% { transform: translateX(0); }
+}
+@keyframes frame-top {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-12px); }
+  100% { transform: translateY(0); }
+}
+@keyframes frame-bottom {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(12px); }
+  100% { transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MARKETING — mégaphone
+   Corps : shake horizontal. Ondes : partent vers la droite en stagger.
+══════════════════════════════════════════════════════════════════════════ */
+.og-icon--mktg-b {
+  left: 96px; top: 109px;
+  width: 163px; height: 181px;
+}
+
+/* Ondes : décalé à droite du cône, centré verticalement sur le mi-cône */
+.og-mktg-waves {
+  position: absolute;
+  left: 272px; top: 133px;
+  width: 70px; height: 110px;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.og-card--marketing.og-card--active .og-mktg-body {
+  animation: mktg-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
+}
+
+/* État repos : traits invisibles, légèrement rétractés vers la gauche */
+.mktg-wave--1,
+.mktg-wave--2,
+.mktg-wave--3 {
+  transform-box: fill-box;
+  transform-origin: left center;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: none;
+}
+
+/* Au clic : chaque trait glisse vers la droite en stagger */
+.og-card--active .mktg-wave--1 { animation: wave-slide 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.04s forwards; }
+.og-card--active .mktg-wave--2 { animation: wave-slide 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.14s forwards; }
+.og-card--active .mktg-wave--3 { animation: wave-slide 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.24s forwards; }
+
+@keyframes mktg-shake {
+  0%   { transform: translateX(0)   rotate(0deg); }
+  15%  { transform: translateX(-8px) rotate(-7deg); }
+  35%  { transform: translateX(6px)  rotate(6deg); }
+  55%  { transform: translateX(-4px) rotate(-3deg); }
+  75%  { transform: translateX(3px)  rotate(1.5deg); }
+  100% { transform: translateX(0)   rotate(0deg); }
+}
+
+@keyframes wave-slide {
+  0%   { opacity: 0; transform: translateX(-8px); }
+  40%  { opacity: 1; }
+  70%  { transform: translateX(5px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   AUTRE — trois points
+   Bounce en stagger. Les points sont des divs CSS, pas des <img>.
+══════════════════════════════════════════════════════════════════════════ */
+.og-dots-wrap {
+  position: absolute;
+  display: flex;
+  gap: 20px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.og-dot {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.og-card--active .og-dot--l { animation: dot-bounce 0.55s cubic-bezier(0.34, 1.7, 0.64, 1) 0.00s both; }
+.og-card--active .og-dot--c { animation: dot-bounce 0.55s cubic-bezier(0.34, 1.7, 0.64, 1) 0.10s both; }
+.og-card--active .og-dot--r { animation: dot-bounce 0.55s cubic-bezier(0.34, 1.7, 0.64, 1) 0.20s both; }
+
+@keyframes dot-bounce {
+  0%   { transform: translateY(0)    scale(1); }
+  30%  { transform: translateY(-22px) scale(0.9); }
+  60%  { transform: translateY(6px)   scale(1.12); }
+  80%  { transform: translateY(-5px)  scale(0.97); }
+  100% { transform: translateY(0)    scale(1); }
+}
+
+/* ─── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 1340px) {
+  .og-grid { grid-template-columns: repeat(2, 400px); }
+}
+@media (max-width: 880px) {
+  .og-grid { grid-template-columns: 400px; }
+}

@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 236 236" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Group 2505">
+<rect id="Rectangle 687" x="188" width="16" height="236" rx="7.28421" fill="var(--fill-0, white)"/>
+<g id="Rectangle 688">
+<rect x="32" width="16" height="236" rx="7.28421" fill="var(--fill-0, white)"/>
+<rect x="32" width="16" height="236" rx="7.28421" stroke="var(--stroke-0, white)"/>
+</g>
+<rect id="Rectangle 689" x="236" y="32" width="16" height="236" rx="7.28421" transform="rotate(90 236 32)" fill="var(--fill-0, white)"/>
+<rect id="Rectangle 690" x="236" y="188" width="16" height="236" rx="7.28421" transform="rotate(90 236 188)" fill="var(--fill-0, white)"/>
+</g>
+</svg>
