@@ -1,0 +1,541 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Desktop 35 — "Quelle est ta spécialité ?"
+   Stack : HTML/CSS/JS vanilla (compilé via Vite + React pour l'instant)
+   DA : profondeur océanique, violet lumineux, lueurs diffuses
+══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Root ──────────────────────────────────────────────────────────────── */
+.d35-root {
+  position: relative;
+  width: 100%;
+  min-width: 1440px;
+  height: 1024px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 32px;
+  box-sizing: border-box;
+  background: #0b0920;
+}
+
+/* ─── Fond gradient radial — violet central ─────────────────────────────── */
+.d35-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 55% 40% at 50% 100%,
+      rgba(94, 81, 241, 0.10) 0%,
+      rgba(58, 52, 131, 0.08) 36%,
+      rgba(11, 9, 32, 0) 100%
+    ),
+    linear-gradient(180deg, #0b0920 0%, #0b0920 100%);
+}
+
+/* ─── Vignettage inset ──────────────────────────────────────────────────── */
+.d35-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 187px rgba(0,0,0,0.25),
+    inset 0 85px 76px rgba(172,165,245,0.04),
+    inset 0 -85px 76px rgba(172,165,245,0.04);
+}
+
+/* ─── Passer ────────────────────────────────────────────────────────────── */
+.d35-passer {
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  color: rgba(246, 246, 255, 0.30);
+  padding: 0;
+  align-self: flex-start;
+  transition: color 0.2s ease;
+}
+.d35-passer:hover { color: rgba(246,246,255,0.55); }
+
+/* ─── Corps principal ───────────────────────────────────────────────────── */
+.d35-body {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex: 1;
+  padding-top: 80px;
+  width: 100%;
+}
+
+/* ─── Colonne titre ─────────────────────────────────────────────────────── */
+.d35-headline {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 524px;
+  flex-shrink: 0;
+}
+
+.d35-headline .d35-title {
+  font-family: 'Instrument Serif', 'Playfair Display', Georgia, serif;
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #f6f6ff;
+  margin: 0;
+}
+
+.d35-headline .d35-subtitle {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.03em;
+  color: #f6f6ff;
+  margin: 0;
+}
+
+/* ─── Grille des spécialités — 2 colonnes ───────────────────────────────── */
+.d35-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 350px);
+  gap: 40px;
+  flex-shrink: 0;
+}
+
+/* ─── Bouton spécialité ─────────────────────────────────────────────────── */
+.sp-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 350px;
+  padding: 24px 32px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  background: transparent;
+  color: #f6f6ff;
+
+  /* Drop shadow externe */
+  filter: drop-shadow(0px 4px 17.3px rgba(172,165,245,0.24));
+
+  transition:
+    color 0.35s ease,
+    filter 0.35s ease,
+    transform 0.15s ease;
+}
+
+.sp-btn:hover {
+  transform: translateY(-2px);
+  filter: drop-shadow(0px 6px 22px rgba(172,165,245,0.38));
+}
+
+.sp-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Fond foncé de la card */
+.sp-btn-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  background: #100e25;
+  pointer-events: none;
+}
+
+/* Ombre inset de la card */
+.sp-btn-inset {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0px 0px 85.3px rgba(0,0,0,0.22),
+    inset 0px -8px 21.7px rgba(172,165,245,0.10),
+    inset 0px 8px 21.7px rgba(172,165,245,0.30);
+}
+
+/* État actif — lueur violette */
+.sp-btn--active {
+  color: #7d74eb;
+  filter: drop-shadow(0px 4px 30px rgba(107,95,238,0.55));
+}
+
+.sp-btn--active .sp-btn-bg {
+  background: #0d0b1f;
+}
+
+.sp-btn--active .sp-btn-inset {
+  box-shadow:
+    inset 0px 0px 85.3px rgba(0,0,0,0.22),
+    inset 0px -8px 21.7px rgba(172,165,245,0.15),
+    inset 0px 8px 21.7px rgba(172,165,245,0.35);
+}
+
+/* ─── Boîte icône (67.5 × 67.5 px) ─────────────────────────────────────── */
+.sp-icon-box {
+  position: relative;
+  width: 67.5px;
+  height: 67.5px;
+  flex-shrink: 0;
+  border-radius: 7.92px;
+  background: #0d0c1f;
+  overflow: hidden;
+}
+
+.sp-icon-glow {
+  position: absolute;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.sp-icon-glow--top {
+  width: 38.94px;
+  height: 29.37px;
+  left: 18.32px;
+  top: 13.69px;
+  transform: rotate(90deg);
+  opacity: 0.5;
+  transition: opacity 0.35s ease;
+}
+
+.sp-icon-glow--bot {
+  width: 38.94px;
+  height: 16.5px;
+  left: 13.69px;
+  top: 63.03px;
+  opacity: 0.5;
+  transition: opacity 0.35s ease;
+}
+
+.sp-btn--active .sp-icon-glow--top,
+.sp-btn--active .sp-icon-glow--bot { opacity: 0.85; }
+
+/* Reflet inset de la boîte icône */
+.sp-icon-inset {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0px -1.32px 3.58px rgba(172,165,245,0.10),
+    inset 0px 1.32px 3.58px rgba(172,165,245,0.30);
+}
+
+/* Label */
+.sp-btn-label {
+  position: relative;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 28.8px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.011em;
+  white-space: nowrap;
+  text-shadow: 0 0 55.6px rgba(0,0,0,0.30);
+}
+
+/* ─── Icônes SVG dans la boîte ──────────────────────────────────────────── */
+.sp-icon {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* Dev </> — centré dans 67.5×67.5 */
+.sp-icon--dev {
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+}
+
+.sp-dev-chevron-l,
+.sp-dev-chevron-r,
+.sp-dev-slash {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.sp-icon--dev.is-active .sp-dev-chevron-l { animation: sp-dev-chevron-l 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.sp-icon--dev.is-active .sp-dev-chevron-r { animation: sp-dev-chevron-r 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.sp-icon--dev.is-active .sp-dev-slash     { animation: sp-dev-slash     0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+@keyframes sp-dev-chevron-l {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(-6px); }
+  100% { transform: translateX(0); }
+}
+@keyframes sp-dev-chevron-r {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(6px); }
+  100% { transform: translateX(0); }
+}
+@keyframes sp-dev-slash {
+  0%   { transform: rotate(0deg)   scaleY(1); }
+  30%  { transform: rotate(20deg)  scaleY(0.85); }
+  70%  { transform: rotate(-10deg) scaleY(1.08); }
+  100% { transform: rotate(0deg)   scaleY(1); }
+}
+
+/* Finance — barres */
+.sp-icon--finance {
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+}
+
+.sp-finance-bar {
+  transform-box: fill-box;
+  transform-origin: bottom center;
+}
+
+.sp-icon--finance.is-active .sp-finance-bar--1 { animation: sp-bar-grow 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.00s both; }
+.sp-icon--finance.is-active .sp-finance-bar--2 { animation: sp-bar-grow 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.10s both; }
+.sp-icon--finance.is-active .sp-finance-bar--3 { animation: sp-bar-grow 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.20s both; }
+
+@keyframes sp-bar-grow {
+  0%   { transform: scaleY(0); opacity: 0; }
+  60%  { transform: scaleY(1.1); opacity: 1; }
+  100% { transform: scaleY(1); }
+}
+
+/* UI/UX artboard */
+.sp-icon--uiux {
+  left: 50%;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+}
+
+.sp-frame-bar {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.sp-icon--uiux.is-active .sp-frame-bar--top    { animation: sp-frame-top    0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.00s both; }
+.sp-icon--uiux.is-active .sp-frame-bar--bottom { animation: sp-frame-bottom 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.00s both; }
+.sp-icon--uiux.is-active .sp-frame-bar--left   { animation: sp-frame-left   0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.10s both; }
+.sp-icon--uiux.is-active .sp-frame-bar--right  { animation: sp-frame-right  0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.10s both; }
+
+@keyframes sp-frame-right  { 0% { transform: translateX(0); } 40% { transform: translateX(4px); } 100% { transform: translateX(0); } }
+@keyframes sp-frame-left   { 0% { transform: translateX(0); } 40% { transform: translateX(-4px); } 100% { transform: translateX(0); } }
+@keyframes sp-frame-top    { 0% { transform: translateY(0); } 40% { transform: translateY(-4px); } 100% { transform: translateY(0); } }
+@keyframes sp-frame-bottom { 0% { transform: translateY(0); } 40% { transform: translateY(4px); } 100% { transform: translateY(0); } }
+
+/* Marketing mégaphone */
+.sp-icon-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sp-icon--mktg {
+  position: relative;
+  width: 32px;
+  height: 35px;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.sp-mktg-body {
+  flex-shrink: 0;
+}
+
+.sp-mktg-waves {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 22px;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.sp-icon-wrap.is-active .sp-mktg-body {
+  animation: sp-mktg-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
+}
+
+.sp-mktg-wave--1,
+.sp-mktg-wave--2,
+.sp-mktg-wave--3 {
+  transform-box: fill-box;
+  transform-origin: left center;
+  opacity: 1;
+  transform: translateX(-2px);
+}
+
+.sp-icon-wrap.is-active .sp-mktg-wave--1 { animation: sp-wave-slide 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.04s forwards; }
+.sp-icon-wrap.is-active .sp-mktg-wave--2 { animation: sp-wave-slide 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.14s forwards; }
+.sp-icon-wrap.is-active .sp-mktg-wave--3 { animation: sp-wave-slide 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) 0.24s forwards; }
+
+@keyframes sp-mktg-shake {
+  0%   { transform: translateX(0)   rotate(0deg); }
+  15%  { transform: translateX(-4px) rotate(-7deg); }
+  35%  { transform: translateX(3px)  rotate(6deg); }
+  55%  { transform: translateX(-2px) rotate(-3deg); }
+  75%  { transform: translateX(2px)  rotate(1.5deg); }
+  100% { transform: translateX(0)   rotate(0deg); }
+}
+
+@keyframes sp-wave-slide {
+  0%   { opacity: 1; transform: translateX(-4px); }
+  70%  { transform: translateX(2px); }
+  100% { opacity: 1; transform: translateX(-2px); }
+}
+
+/* Autre — 3 points */
+.sp-dots-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.sp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.sp-dots-wrap.is-active .sp-dot--l { animation: sp-dot-bounce 0.55s cubic-bezier(0.34, 1.7, 0.64, 1) 0.00s both; }
+.sp-dots-wrap.is-active .sp-dot--c { animation: sp-dot-bounce 0.55s cubic-bezier(0.34, 1.7, 0.64, 1) 0.10s both; }
+.sp-dots-wrap.is-active .sp-dot--r { animation: sp-dot-bounce 0.55s cubic-bezier(0.34, 1.7, 0.64, 1) 0.20s both; }
+
+@keyframes sp-dot-bounce {
+  0%   { transform: translateY(0)   scale(1); }
+  30%  { transform: translateY(-7px) scale(0.9); }
+  60%  { transform: translateY(2px)  scale(1.12); }
+  80%  { transform: translateY(-2px) scale(0.97); }
+  100% { transform: translateY(0)   scale(1); }
+}
+
+/* Graphic Design — plume GSAP */
+.sp-icon--gd {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46px;
+  height: 41px;
+  transform: translate(-50%, -50%);
+  pointer-events: all;
+  overflow: visible;
+}
+
+.sp-gd-pen-group {
+  transform-box: fill-box;
+  transform-origin: 50% 85%;
+}
+
+/* ─── Footer ────────────────────────────────────────────────────────────── */
+.d35-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Bouton secondaire — outline violet */
+.d35-btn-secondary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 48px;
+  border: 2px solid #9a94e5;
+  border-radius: 120px;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  color: #f6f6ff;
+
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.d35-btn-secondary::before {
+  content: '';
+  position: absolute;
+  left: -85px;
+  top: -21px;
+  width: 77px;
+  height: 99px;
+  background: rgba(255,255,255,0.48);
+  filter: blur(14.6px);
+  transform: rotate(31.35deg);
+  pointer-events: none;
+}
+
+.d35-btn-secondary:hover { border-color: #b8b4f0; }
+
+/* Bouton principal — fond violet */
+.d35-btn-primary {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 48px;
+  border: 2px solid #5e51f1;
+  border-radius: 120px;
+  cursor: pointer;
+  overflow: hidden;
+
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  color: #f6f6ff;
+
+  background:
+    radial-gradient(ellipse at 80% 20%, rgba(154,148,229,0.34) 0%, rgba(94,81,241,0.34) 50%, rgba(54,47,139,0.34) 100%),
+    rgba(94, 81, 241, 0.18);
+
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.d35-btn-primary::before {
+  content: '';
+  position: absolute;
+  left: -83px;
+  top: -19px;
+  width: 77px;
+  height: 99px;
+  background: rgba(255,255,255,0.48);
+  filter: blur(14.6px);
+  transform: rotate(31.35deg);
+  pointer-events: none;
+}
+
+.d35-btn-primary--ready {
+  border-color: #7d74eb;
+  box-shadow: 0 0 30px rgba(107,95,238,0.4);
+}
+
+.d35-btn-primary:hover {
+  border-color: #9a94e5;
+  box-shadow: 0 0 40px rgba(107,95,238,0.55);
+}

@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import gsap from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
+import './OnboardingGrid.css'
 
 gsap.registerPlugin(MotionPathPlugin)
-import './OnboardingGrid.css'
 
 const A = (name: string) => `/assets/${name}.svg`
 
@@ -63,140 +63,6 @@ function DevCard() {
         </>
       )}
     </Card>
-  )
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Graphic Design — plume
-   La plume part du début du tracé Figma (Vector 62) et le suit jusqu'au
-   bout via GSAP MotionPath. Le trait se révèle en même temps via
-   stroke-dashoffset. En before : trait invisible, plume à sa position finale.
-───────────────────────────────────────────────────────────────────────── */
-function GraphicCard() {
-  const [active, setActive] = useState(FORCE_ACTIVE)
-  const svgRef    = useRef<SVGSVGElement>(null)
-  const penRef    = useRef<SVGGElement>(null)
-  const traceRef  = useRef<SVGPathElement>(null)
-  const tlRef     = useRef<gsap.core.Timeline | null>(null)
-
-  useEffect(() => {
-    const pen   = penRef.current
-    const trace = traceRef.current
-    if (!pen || !trace) return
-
-    const len = trace.getTotalLength()
-    gsap.set(trace, { strokeDasharray: len, strokeDashoffset: len })
-
-    const DRAW = 0.85
-    // Décalage perpendiculaire au tracé, côté droit.
-    // Normale droite = tangente tournée de -90° : (dy, -dx) normalisé * PERP.
-    const PERP = 22
-
-    const applyPerp = (progress: number) => {
-      const eps = 0.5  // petite distance en px pour calculer la tangente
-      const t = Math.max(0, Math.min(len, progress * len))
-      const a = trace.getPointAtLength(Math.max(0, t - eps))
-      const b = trace.getPointAtLength(Math.min(len, t + eps))
-      const dx = b.x - a.x, dy = b.y - a.y
-      const mag = Math.sqrt(dx * dx + dy * dy) || 1
-      // Normale droite : rotation -90° de la tangente (dy/mag, -dx/mag)
-      gsap.set(pen, {
-        x: `+=${(dy / mag) * PERP}`,
-        y: `+=${(-dx / mag) * PERP}`,
-      })
-    }
-
-    const MOTION = (start: number, end: number) => ({
-      path: trace,
-      autoRotate: true,
-      start,
-      end,
-    })
-
-    gsap.set(pen, { motionPath: MOTION(0, 0) })
-    applyPerp(0)
-
-    const tl = gsap.timeline({
-      paused: true,
-      onReverseComplete: () => {
-        gsap.set(pen, { motionPath: MOTION(0, 0) })
-        applyPerp(0)
-        gsap.set(trace, { strokeDashoffset: len })
-      },
-    })
-    tl
-      .to(trace, { strokeDashoffset: 0, duration: DRAW, ease: 'power2.inOut' }, 0)
-      .to(pen, {
-        motionPath: MOTION(0, 1),
-        duration: DRAW,
-        ease: 'power2.inOut',
-        onUpdate() { applyPerp(this.progress()) },
-      }, 0)
-
-    tlRef.current = tl
-    return () => { tl.kill() }
-  }, [])
-
-  useEffect(() => {
-    const tl = tlRef.current
-    if (!tl) return
-    if (active) {
-      tl.play(0)
-    } else {
-      tl.reverse()
-    }
-  }, [active])
-
-  // Couleur : CSS currentColor (héritée de .og-card / .og-card--active)
-  return (
-    <button
-      className={`og-card og-card--graphic ${active ? 'og-card--active' : ''}`}
-      onClick={() => setActive(a => !a)}
-      aria-label="Graphic design"
-      aria-pressed={active}
-    >
-      <div className="og-halo" style={{ backgroundImage: `url(${A('violet-halo2')})` }} />
-      <svg
-        ref={svgRef}
-        className="og-icon og-icon--graphic"
-        viewBox="0 0 233.912 211.453"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        overflow="visible"
-      >
-        {/* Tracé Figma (Vector 62) — caché par défaut via strokeDashoffset en attribut */}
-        <path
-          ref={traceRef}
-          d="M21.8721 8.00006C88.8691 68.7647 9.23459 105.466 8.02276 147.014C6.81093 188.563 54.9377 203.451 54.9377 203.451"
-          stroke="currentColor"
-          strokeWidth="16"
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray="9999"
-          strokeDashoffset="9999"
-        />
-        {/* Groupe motionPath — GSAP positionne ce groupe sur le path.
-            L'origine (0,0) de ce groupe correspond à la pointe de la plume.
-            Le sous-groupe centre la plume sur (0,0) et la met à l'échelle. */}
-        <g ref={penRef} className="graphic-pen">
-          {/* translate(0, 20) dans l'espace local du groupe post-autoRotate
-              = décalage perpendiculaire au tracé, côté droit */}
-          <g transform="rotate(135) scale(0.5) translate(-55, -185)">
-            <rect
-              x="233.912" y="98.173"
-              width="43.3571" height="85.3028"
-              rx="7.98716"
-              transform="rotate(138.79 233.912 98.173)"
-              fill="currentColor"
-            />
-            <path
-              d="M129.305 75.6378C136.192 71.9124 144.74 73.4462 149.903 79.3332L185.195 119.578C189.529 124.522 190.578 131.541 187.876 137.535L172.684 171.24C170.775 175.476 167.195 178.73 162.797 180.228L78.1682 209.056C69.5364 211.996 67.9965 200.564 74.7755 194.464L106.118 166.266C107.665 164.874 109.872 164.614 111.95 164.727C117.651 165.037 122.524 160.668 122.834 154.968C123.145 149.268 118.775 144.395 113.074 144.084C107.374 143.774 102.502 148.144 102.192 153.844C102.046 156.512 101.581 159.383 99.5974 161.174L68.0837 189.622C62.22 194.915 52.6584 192.521 55.5237 185.159L87.6096 102.725C89.0522 99.0186 91.7649 95.9451 95.2629 94.0529L129.305 75.6378Z"
-              fill="currentColor"
-            />
-          </g>
-        </g>
-      </svg>
-    </button>
   )
 }
 
@@ -306,6 +172,7 @@ function MarketingCard() {
   )
 }
 
+
 /* ─────────────────────────────────────────────────────────────────────────
    Autre — trois points
    Animation : chaque point saute en rebond (bounce) en stagger.
@@ -328,17 +195,189 @@ function AutreCard() {
   )
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Graphic Design — plume + motion path GSAP
+   - before  : plume blanche centrée, tracé invisible
+   - clic    : tracé révélé via strokeDashoffset + plume suit le path (autoRotate)
+   - after   : tracé complet visible, plume en bas du path
+   - re-clic : timeline.reverse() exact
+───────────────────────────────────────────────────────────────────────── */
+
+// Longueur approximative du path (mesurée via getTotalLength, ~260px dans le viewBox 242×205)
+// Path décalé de +10 en Y
+const PATH_D = 'M21.8906 18C88.9769 76.759 9.23627 112.249 8.02283 152.426C6.80938 192.603 55.0003 207 55.0003 207'
+
+function GraphicDesignCard() {
+  const [active, setActive] = useState(FORCE_ACTIVE)
+  const tlRef = useRef<gsap.core.Timeline | null>(null)
+  const penRef = useRef<SVGGElement | null>(null)
+  const traceRef = useRef<SVGPathElement | null>(null)
+  const motionPathRef = useRef<SVGPathElement | null>(null)
+
+  useEffect(() => {
+    const pen = penRef.current
+    const trace = traceRef.current
+    const motionPath = motionPathRef.current
+    if (!pen || !trace || !motionPath) return
+
+    const pathLen = trace.getTotalLength()
+    gsap.set(trace, { strokeDasharray: pathLen, strokeDashoffset: pathLen })
+
+    // Calcule le décalage entre le centre de la plume (before) et le début du path,
+    // dans l'espace SVG, pour que GSAP parte de la vraie position initiale.
+    const svgEl = pen.ownerSVGElement as SVGSVGElement
+    const penBBox = pen.getBBox()
+    const pathStart = motionPath.getPointAtLength(0)
+
+    // alignOrigin [0.05, 0.95] → pointe de la plume (bas-gauche du groupe)
+    const anchorX = penBBox.x + penBBox.width * 0.05
+    const anchorY = penBBox.y + penBBox.height * 0.95
+    const deltaX = pathStart.x - anchorX
+    const deltaY = pathStart.y - anchorY
+    void svgEl
+
+    // Angles de tangente au début et à la fin du path
+    const ptStart0 = motionPath.getPointAtLength(0)
+    const ptStart1 = motionPath.getPointAtLength(3)
+    const angleAtStart = Math.atan2(ptStart1.y - ptStart0.y, ptStart1.x - ptStart0.x) * 180 / Math.PI
+
+    const ptEnd0 = motionPath.getPointAtLength(pathLen - 3)
+    const ptEnd1 = motionPath.getPointAtLength(pathLen)
+    const angleAtEnd = Math.atan2(ptEnd1.y - ptEnd0.y, ptEnd1.x - ptEnd0.x) * 180 / Math.PI
+
+    gsap.set(pen, { rotation: 0, x: 0, y: 0, transformOrigin: '50% 85%' })
+
+    const PHASE1 = 0.3
+    const PHASE2 = 0.65
+    const TOTAL  = PHASE1 + PHASE2
+
+    const tl = gsap.timeline({ paused: true })
+
+    // Phase 1 : rotation 0 → angleAtStart avec -25° pour rester couché au départ
+    tl.to(pen, {
+      rotation: angleAtStart - 25,
+      duration: PHASE1,
+      ease: 'back.out(1.4)',
+    }, 0)
+
+    // Phase 2 : rotation continue angleAtStart-25° → angleAtEnd
+    tl.to(pen, {
+      rotation: angleAtEnd,
+      duration: PHASE2,
+      ease: 'power1.inOut',
+    }, PHASE1)
+
+    // Phase 1 : translation vers le début du path — pas d'overshoot pour rester dans le cadre
+    tl.to(pen, {
+      x: deltaX,
+      y: deltaY,
+      duration: PHASE1,
+      ease: 'power2.inOut',
+    }, 0)
+
+    // Phase 2 : motionPath sans autoRotate (la rotation est gérée au-dessus)
+    tl.to(trace, {
+      strokeDashoffset: 0,
+      duration: PHASE2,
+      ease: 'power1.inOut',
+    }, PHASE1)
+
+    tl.to(pen, {
+      duration: PHASE2,
+      ease: 'power1.inOut',
+      motionPath: {
+        path: motionPath,
+        align: motionPath,
+        alignOrigin: [0.05, 0.95],
+        autoRotate: false,
+        start: 0,
+        end: 1,
+      },
+    }, PHASE1)
+
+    tlRef.current = tl
+    if (FORCE_ACTIVE) tl.progress(1)
+
+    return () => { tl.kill() }
+  }, [])
+
+  const handleClick = () => {
+    const tl = tlRef.current
+    if (!tl) return
+    if (!active) {
+      tl.play()
+    } else {
+      tl.reverse()
+    }
+    setActive(a => !a)
+  }
+
+  return (
+    <button
+      className={`og-card og-card--gd ${active ? 'og-card--active' : ''}`}
+      onClick={handleClick}
+      aria-label="Graphic Design"
+      aria-pressed={active}
+    >
+      <div className="og-halo" style={{ backgroundImage: `url(${A('violet-halo2')})` }} />
+      <Glow img="ellipse109" pos="top" />
+      <Glow img="ellipse108" pos="bot" />
+
+      <svg
+        className="gd-pen-svg"
+        viewBox="0 0 242.068 215"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        overflow="visible"
+      >
+        {/* Path dupliqué : l'un pour le tracé visible, l'autre pour le rail GSAP (même d=) */}
+        <path
+          ref={traceRef}
+          d={PATH_D}
+          stroke="currentColor"
+          strokeWidth="16"
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray="400"
+          strokeDashoffset="400"
+        />
+        <path
+          ref={motionPathRef}
+          d={PATH_D}
+          stroke="none"
+          fill="none"
+        />
+
+        {/* Plume — GSAP la déplace le long du rail */}
+        <g ref={penRef} className="gd-pen-group">
+          <rect
+            x="202.912" y="90.1729"
+            width="43.3571" height="85.3028"
+            rx="7.98716"
+            transform="rotate(138.79 202.912 90.1729)"
+            fill="currentColor"
+          />
+          <path
+            d="M98.3047 67.6378C105.192 63.9124 113.74 65.4461 118.902 71.3331L154.194 111.578C158.529 116.522 159.578 123.541 156.876 129.535L141.684 163.24C139.775 167.475 136.194 170.73 131.797 172.228L47.168 201.056C38.5361 203.996 36.9963 192.563 43.7753 186.464L75.1173 158.266C76.6644 156.874 78.8721 156.613 80.9502 156.727C86.6504 157.037 91.5234 152.668 91.834 146.968C92.1444 141.268 87.7745 136.394 82.0742 136.084C76.3739 135.774 71.5018 140.144 71.1914 145.844C71.0462 148.512 70.5809 151.383 68.5972 153.174L37.0834 181.622C31.2198 186.915 21.6581 184.521 24.5234 177.159L56.6094 94.7247C58.0519 91.0185 60.7647 87.945 64.2627 86.0528L98.3047 67.6378Z"
+            fill="currentColor"
+          />
+        </g>
+      </svg>
+    </button>
+  )
+}
+
 export default function OnboardingGrid() {
   return (
     <div className="og-root">
       <p className="og-hint">Clique sur une carte pour la sélectionner</p>
       <div className="og-grid">
         <DevCard />
-        <GraphicCard />
-        <FinanceCard />
         <UiUxCard />
+        <FinanceCard />
         <MarketingCard />
         <AutreCard />
+        <GraphicDesignCard />
       </div>
     </div>
   )

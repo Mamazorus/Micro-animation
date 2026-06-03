@@ -173,22 +173,6 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
   100% { transform: rotate(0deg)   scaleY(1); }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   GRAPHIC DESIGN — plume + tracé GSAP MotionPath
-══════════════════════════════════════════════════════════════════════════ */
-.og-icon--graphic {
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 226px;
-  height: 202px;
-}
-
-/* L'origine du groupe graphic-pen est la pointe de la plume (0,0 local).
-   GSAP MotionPath positionne ce point sur chaque point du tracé. */
-.graphic-pen {
-  transform-origin: 0px 0px;
-}
 
 /* ═══════════════════════════════════════════════════════════════════════
    FINANCE — barres
@@ -276,13 +260,13 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
   animation: mktg-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
 }
 
-/* État repos : traits invisibles, légèrement rétractés vers la gauche */
+/* État repos : traits visibles (blanc via currentColor), légèrement rétractés vers la gauche */
 .mktg-wave--1,
 .mktg-wave--2,
 .mktg-wave--3 {
   transform-box: fill-box;
   transform-origin: left center;
-  opacity: 0;
+  opacity: 1;
   transform: translateX(-4px);
   transition: none;
 }
@@ -302,10 +286,9 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
 }
 
 @keyframes wave-slide {
-  0%   { opacity: 0; transform: translateX(-8px); }
-  40%  { opacity: 1; }
+  0%   { opacity: 1; transform: translateX(-8px); }
   70%  { transform: translateX(5px); }
-  100% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 1; transform: translateX(-4px); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -339,6 +322,29 @@ svg { display: block; width: 100%; height: 100%; overflow: visible; }
   60%  { transform: translateY(6px)   scale(1.12); }
   80%  { transform: translateY(-5px)  scale(0.97); }
   100% { transform: translateY(0)    scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GRAPHIC DESIGN — plume + motion path GSAP
+   La plume suit la courbe bezier du path invisible.
+   before : plume blanche à sa position naturelle dans le SVG
+   after  : plume violette à la fin du path (GSAP contrôle la position)
+══════════════════════════════════════════════════════════════════════════ */
+.gd-pen-svg {
+  position: absolute;
+  /* Centré : bbox réelle mesurée (left:100,top:95,w:174,h:171) → centre (187,181)
+     décalage pour amener à (200,200) : +13 left, +19 top */
+  left: 90px;
+  top: 93px;
+  width: 236px;
+  height: 200px;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.gd-pen-group {
+  transform-box: fill-box;
+  transform-origin: 50% 85%;
 }
 
 /* ─── Responsive ──────────────────────────────────────────────────────── */

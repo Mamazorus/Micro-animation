@@ -87,7 +87,7 @@ Un fichier prêt à copier (variables + classes utilitaires `.glow`, `.glass`, f
 
 ## Règles de travail (préférences de Maël)
 
-- Maël **code en HTML / CSS / JavaScript** (vanilla, et libs type GSAP, Anime.js, Lottie, swiper.js). Propose du code dans cette stack par défaut.
+- Maël **code en HTML / Tailwind CSS / JavaScript** (vanilla, et libs type GSAP, Anime.js, Lottie, swiper.js). Propose du code dans cette stack par défaut. Utilise **Tailwind CSS v4** via CDN (`<script src="https://cdn.tailwindcss.com"></script>`) ou via le plugin Vite selon le contexte. Styles en classes utilitaires en priorité. Pour les valeurs custom très spécifiques au projet (box-shadow glow complexe, dégradés radiaux, animations GSAP), utilise des propriétés CSS inline ou un bloc `<style>` dédié minimal — pas de fichier `.css` séparé sauf si le projet l'exige déjà. Configure la palette Frank dans `tailwind.config` ou via `@theme` (Tailwind v4) : `frank-deep: #0B0820`, `frank-violet: #6B5FEE`, `frank-glow: #8B82F2`, etc.
 - Travail **itératif** : il partage des brouillons à reformuler plutôt que de générer de zéro.
 - Texte **typographiquement propre** : pas d'emojis dans les libellés/diagrammes, pas de tirets longs (« — ») dans les nœuds de diagramme (formulation fluide à la place), traits d'union plutôt que points médians.
 - Sorties **directement utilisables** (collables dans FigJam, prêtes pour la présentation) plutôt que de la doc de référence.
