@@ -249,7 +249,6 @@ function GraphicDesignCard() {
 
     const PHASE1 = 0.3
     const PHASE2 = 0.65
-    const TOTAL  = PHASE1 + PHASE2
 
     const tl = gsap.timeline({ paused: true })
 
