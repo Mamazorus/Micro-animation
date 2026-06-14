@@ -11,28 +11,56 @@ type Step = (typeof STEPS)[number]
 
 type FrankState = { x: number; y: number; scale: number; rot: number; opacity: number }
 
+/* Suréchantillonnage de la couche Frank. La <video> est rastérisée par le GPU à
+   la taille de layout de .ob-frank (~360px) puis agrandie par le scale GSAP : au
+   gros plan d'intro (scale 7) la texture est étirée 7× → gros pixels, quelle que
+   soit la résolution de la source. Parade : on layoute .ob-frank FRANK_SS× plus
+   grand (var --ss, posé au montage + cf. App.css) et on divise tous les scales par
+   FRANK_SS. Rendu identique, mais la texture est rastérisée FRANK_SS× plus fine.
+   FRANK_SS=4 ⇒ étirement résiduel 7/4≈1,75× au lieu de 7× (pixels imperceptibles)
+   sans suréchantillonner les filtres de flou au point de saccader. Ajustable. */
+const FRANK_SS = 4
+
+/* Profondeur de champ : l'opacité « de repos » de Frank découle de sa taille
+   VISUELLE (le numérateur des scales, indépendant de FRANK_SS). Plus il est
+   petit, plus il est loin dans l'eau → plus il s'estompe.
+   visualScale ≥ DEPTH_NEAR → pleinement opaque (gros plan) ; ≤ DEPTH_FAR →
+   opacité minimale DEPTH_OP_FAR. Pour accentuer l'effet, baisse DEPTH_OP_FAR. */
+const DEPTH_NEAR = 2.3, DEPTH_FAR = 0.6
+const DEPTH_OP_FAR = 0.72, DEPTH_OP_NEAR = 1
+const depthOpacity = (visualScale: number) => {
+  const t = gsap.utils.clamp(0, 1, (visualScale - DEPTH_FAR) / (DEPTH_NEAR - DEPTH_FAR))
+  return +(DEPTH_OP_FAR + (DEPTH_OP_NEAR - DEPTH_OP_FAR) * t).toFixed(3)
+}
+
 /* État de Frank par écran — transformOrigin sur ses yeux (50% 51%).
    x ×innerWidth, y ×innerHeight (origine = centre de l'écran).
-   Plus il est petit, plus il est « loin » dans l'eau → opacité plus basse. */
+   fs reçoit l'échelle VISUELLE : l'opacité en découle (depthOpacity) et le scale
+   stocké est divisé par FRANK_SS (cf. suréchantillonnage ci-dessus). */
+const fs = (x: number, y: number, visualScale: number, rot: number): FrankState =>
+  ({ x, y, scale: visualScale / FRANK_SS, rot, opacity: depthOpacity(visualScale) })
+
 const FRANK: Record<'intro' | Step, FrankState> = {
-  intro:   { x: 0,     y: 0,     scale: 7,    rot: 0,  opacity: 1 },
-  welcome: { x: 0,     y: -0.16, scale: 1,    rot: 8,  opacity: 0.85 },
-  skill:   { x: 0,     y: 0.41,  scale: 2.3,  rot: 0,  opacity: 1 },
-  why:     { x: 0.34,  y: -0.32, scale: 0.62, rot: -4, opacity: 0.8 },
-  ia:      { x: -0.16, y: 0.5,   scale: 2.4,  rot: 5,  opacity: 1 },
+  intro:   fs(0,     0,     7,    0),
+  welcome: fs(0,    -0.16,  1,    8),
+  skill:   fs(0,     0.41,  2.3,  0),
+  why:     fs(0.34, -0.32,  0.62, -4),
+  ia:      fs(-0.16, 0,     2.4,  5),
 }
 
 const AI_OPTIONS = ['Claude', 'ChatGPT', 'Gemini', 'Mistral', 'Codex', 'Copilot', 'Loveable', 'Autre']
 
-/* Bulles libérées par Frank en quittant « Pourquoi Frank ? ».
-   dx/drift en px (point de départ / dérive latérale), rise en fraction de hauteur,
-   delay en s (cadence d'émission), q = bulle portant un point d'interrogation. */
+/* Bulles d'interrogation « libérées » autour de la tête de Frank sur l'écran IA.
+   dx/dy = point d'apparition autour d'elle (px) ; rise = montée douce (× hauteur) ;
+   drift = dérive latérale (px) ; delay = cadence d'émission (s) ;
+   q = bulle portant un point d'interrogation.
+   Cycle : pop autour d'elle → dérive lente → la taille ET l'opacité réduisent. */
 const QUESTION_BUBBLES = [
-  { size: 32, dx: -16, rise: 0.34, drift:  22, delay: 0.00, q: false },
-  { size: 62, dx:  18, rise: 0.52, drift:  30, delay: 0.10, q: true  },
-  { size: 28, dx:  40, rise: 0.30, drift:  34, delay: 0.05, q: false },
-  { size: 84, dx: -10, rise: 0.58, drift: -22, delay: 0.15, q: true  },
-  { size: 44, dx:  34, rise: 0.42, drift: -16, delay: 0.08, q: false },
+  { size: 96,  dx: -120, dy:  12, rise: 0.05, drift: -14, delay: 0.0, q: true  },
+  { size: 56,  dx:  128, dy: -14, rise: 0.06, drift:  18, delay: 0.6, q: false },
+  { size: 128, dx:  -6,  dy: -80, rise: 0.05, drift:  10, delay: 1.1, q: true  },
+  { size: 64,  dx: -92,  dy: -70, rise: 0.04, drift: -16, delay: 1.7, q: false },
+  { size: 82,  dx:  108, dy:  42, rise: 0.05, drift:  14, delay: 2.2, q: true  },
 ]
 
 const WHY_CARDS = [
@@ -44,8 +72,69 @@ const WHY_CARDS = [
     text: "Chaque skill passe par 2 niveaux de vérification. Si quelque chose cloche, tu le vois avant d'installer." },
 ]
 
+/* Inclinaison « suit la direction » de Frank le long d'un motionPath.
+   On lit sa vitesse instantanée (dx,dy) image par image et on l'incline vers sa
+   direction de nage, amplitude bornée pour qu'il reste face-caméra et lisible.
+   `straighten` : sur les 30 % finaux, l'inclinaison s'efface pour qu'il arrive
+   bien droit, à la rotation de repos de l'écran (rotEnd). */
+const LEAN_AMP = 18      // inclinaison max (deg)
+const LEAN_FACTOR = 0.2  // fraction de l'angle de direction réellement appliquée
+const LEAN_SMOOTH = 0.2  // lissage de l'inclinaison [0..1]
+
+function makeLean(target: gsap.TweenTarget, rotStart: number, rotEnd: number, straighten = true) {
+  let px: number | null = null
+  let py = 0
+  let tilt = 0
+  return {
+    start() { px = null; py = 0; tilt = 0 },
+    update(this: gsap.core.Tween) {
+      const p = this.progress()
+      const x = parseFloat(String(gsap.getProperty(target, 'x')))
+      const y = parseFloat(String(gsap.getProperty(target, 'y')))
+      if (px !== null) {
+        const dx = x - px, dy = y - py
+        if (dx * dx + dy * dy > 0.25) {          // ignore les frames quasi immobiles
+          // direction de nage ramenée à « 0 = vers le haut », puis dans [-180,180]
+          let dir = Math.atan2(dy, dx) * 180 / Math.PI + 90
+          dir = ((dir + 180) % 360 + 360) % 360 - 180
+          const want = gsap.utils.clamp(-LEAN_AMP, LEAN_AMP, dir * LEAN_FACTOR)
+          tilt += (want - tilt) * LEAN_SMOOTH
+        }
+      }
+      px = x; py = y
+      const fade = straighten ? gsap.utils.clamp(0, 1, (1 - p) / 0.3) : 1
+      gsap.set(target, { rotation: rotStart + (rotEnd - rotStart) * p + tilt * fade })
+    },
+  }
+}
+
+/* Flottement idle « wiggle » : micro-mouvement organique pour que Frank ne soit
+   jamais totalement figé entre deux transitions. Porté par .ob-frank-float pour ne
+   pas entrer en conflit avec le placement/l'inclinaison gérés sur .ob-frank. Les
+   axes sont déphasés (durées premières entre elles + delays négatifs) et centrés
+   sur la pose de repos → flottement sous-marin non répétitif. yPercent/xPercent
+   sont relatifs à la taille apparente, donc neutres vis-à-vis de FRANK_SS. */
+const FLOAT = {
+  y: 1.8,        // amplitude verticale (% de la taille apparente de Frank)
+  x: 1.1,        // amplitude horizontale (%)
+  rot: 1.4,      // tangage (deg)
+  scale: 0.015,  // respiration
+}
+
+function startFloat(el: gsap.TweenTarget) {
+  gsap.set(el, { transformOrigin: '50% 51%' })
+  const o: gsap.TweenVars = { ease: 'sine.inOut', yoyo: true, repeat: -1 }
+  return [
+    gsap.fromTo(el, { yPercent: -FLOAT.y },     { yPercent: FLOAT.y,      duration: 2.3, ...o }),
+    gsap.fromTo(el, { xPercent: -FLOAT.x },     { xPercent: FLOAT.x,      duration: 3.3, delay: -1.1, ...o }),
+    gsap.fromTo(el, { rotation: -FLOAT.rot },   { rotation: FLOAT.rot,    duration: 2.9, delay: -0.7, ...o }),
+    gsap.fromTo(el, { scale: 1 - FLOAT.scale }, { scale: 1 + FLOAT.scale, duration: 3.7, delay: -1.9, ...o }),
+  ]
+}
+
 function Onboarding() {
   const frankRef = useRef<HTMLDivElement>(null)
+  const frankFloatRef = useRef<HTMLDivElement>(null)
   const frankVideoRef = useRef<HTMLVideoElement>(null)
   const frankSkillRef = useRef<HTMLVideoElement>(null)
   // Écran 1 — accueil
@@ -84,6 +173,8 @@ function Onboarding() {
   useEffect(() => {
     const frank = frankRef.current
     if (!frank) return
+    // Suréchantillonnage : .ob-frank est layouté FRANK_SS× plus grand (cf. App.css + FRANK).
+    frank.style.setProperty('--ss', String(FRANK_SS))
 
     const welcomeEls = [titleRef.current, subRef.current, btnRef.current]
     const skillEls   = [skipRef.current, skillRef.current, navRef.current]
@@ -148,11 +239,14 @@ function Onboarding() {
       ]
       t.to([btnRef.current, subRef.current, titleRef.current],
         { autoAlpha: 0, y: 16, duration: 0.36, stagger: 0.07, ease: 'power2.in' }, 0)
+      const wsLeanOut = makeLean(frank, FRANK.welcome.rot, FRANK.welcome.rot, false)
       t.to(frank, { duration: 0.85, ease: 'power2.in',
-        motionPath: { path: divePath, curviness: 1.4, autoRotate: false }, rotation: -6 }, 0.08)
+        motionPath: { path: divePath, curviness: 1.4, autoRotate: false },
+        onStart: wsLeanOut.start, onUpdate: wsLeanOut.update }, 0.08)
       t.to(frank, { opacity: 0, duration: 0.34, ease: 'power2.in' }, 0.55)
       t.set(frankVideoRef.current, { autoAlpha: 0 }, 0.9)
       t.set(frankSkillRef.current, { autoAlpha: 1 }, 0.9)
+      // composition-2.webm (écran skill) : pas d'inclinaison dynamique, juste la pose droite
       t.to(frank, { duration: 0.95, ease: 'power3.out',
         motionPath: { path: [{ x: 0, y: 0.82 * h }, { x: 0, y: FRANK.skill.y * h }], autoRotate: false },
         scale: FRANK.skill.scale, rotation: FRANK.skill.rot }, 0.92)
@@ -172,25 +266,28 @@ function Onboarding() {
       t.to([navRef.current, skillRef.current, skipRef.current],
         { autoAlpha: 0, y: 16, duration: 0.34, stagger: 0.06, ease: 'power2.in' }, 0)
 
+      // composition-2.webm reste visible jusqu'à 0.74 → pas d'inclinaison sur la plongée
       t.to(frank, { duration: 0.6, ease: 'power2.in',
         motionPath: { path: [
           { x: 0,        y: FRANK.skill.y * h },
           { x: 0.05 * w, y: 0.74 * h },
           { x: 0,        y: 1.08 * h },
-        ], curviness: 1.3, autoRotate: false } }, 0.1)
+        ], curviness: 1.3, autoRotate: false }, rotation: FRANK.skill.rot }, 0.1)
       t.to(frank, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 0.42)
       t.set(frankSkillRef.current, { autoAlpha: 0 }, 0.74)
       t.set(frankVideoRef.current, { autoAlpha: 1 }, 0.74)
 
       // Téléportation à gauche pendant qu'il est invisible, en tout petit
       t.set(frank, { x: -0.55 * w, y: 0.02 * h, scale: FRANK.why.scale, rotation: FRANK.why.rot }, 0.7)
+      const swLeanIn = makeLean(frank, FRANK.why.rot, FRANK.why.rot, true)
       t.to(frank, { duration: 1.05, ease: 'power2.out',
         motionPath: { path: [
           { x: -0.55 * w, y: 0.02 * h },
           { x: -0.08 * w, y: 0.2 * h },
           { x:  0.16 * w, y: 0.04 * h },
           { x: FRANK.why.x * w, y: FRANK.why.y * h },
-        ], curviness: 1.3, autoRotate: false } }, 0.74)
+        ], curviness: 1.3, autoRotate: false },
+        onStart: swLeanIn.start, onUpdate: swLeanIn.update }, 0.74)
       t.to(frank, { opacity: FRANK.why.opacity, duration: 0.45, ease: 'power1.out' }, 0.78)
 
       // Les cards d'abord (pour voir Frank flouté en passant derrière), puis en-tête + nav
@@ -213,23 +310,31 @@ function Onboarding() {
         { autoAlpha: 0, y: 16, duration: 0.34, stagger: 0.06, ease: 'power2.in' }, 0)
       t.to(whyCards, { autoAlpha: 0, y: 16, duration: 0.32, stagger: 0.05, ease: 'power2.in' }, 0)
 
-      // Frank nage vers le haut et sort par le plafond
-      t.to(frank, { duration: 0.72, ease: 'power2.in',
+      // Frank nage vers le haut et disparaît complètement par le plafond
+      // (opacité 0 atteinte AVANT la téléportation, pour qu'aucun aller-retour
+      //  ne soit visible : il s'efface en haut, on le réapparaît neuf par le bas)
+      const wiLeanOut = makeLean(frank, FRANK.why.rot, FRANK.why.rot, false)
+      t.to(frank, { duration: 0.6, ease: 'power2.in',
         motionPath: { path: [
           { x: FRANK.why.x * w, y: FRANK.why.y * h },
           { x: 0.30 * w,        y: -0.46 * h },
           { x: 0.22 * w,        y: -0.95 * h },
-        ], curviness: 1.3, autoRotate: false }, rotation: -10 }, 0.12)
-      t.to(frank, { opacity: 0, duration: 0.34, ease: 'power2.in' }, 0.52)
+        ], curviness: 1.3, autoRotate: false },
+        onStart: wiLeanOut.start, onUpdate: wiLeanOut.update }, 0.12)
+      t.to(frank, { opacity: 0, duration: 0.26, ease: 'power2.in' }, 0.40)
 
-      // Réapparition en gros plan par le bas, décalé à gauche
-      t.set(frank, { x: FRANK.ia.x * w, y: 1.05 * h, scale: FRANK.ia.scale, rotation: FRANK.ia.rot }, 0.82)
+      // Invisible : on téléporte Frank tout en bas (montée finie à 0.72,
+      //  opacité déjà nulle depuis 0.66 → la téléportation ne sera pas écrasée)
+      t.set(frank, { x: FRANK.ia.x * w, y: 1.05 * h, scale: FRANK.ia.scale, rotation: FRANK.ia.rot }, 0.72)
+      // Réapparition en gros plan en remontant par le bas, décalé à gauche
+      const wiLeanIn = makeLean(frank, FRANK.ia.rot, FRANK.ia.rot, true)
       t.to(frank, { duration: 0.95, ease: 'power3.out',
         motionPath: { path: [
           { x: FRANK.ia.x * w, y: 1.05 * h },
           { x: FRANK.ia.x * w, y: FRANK.ia.y * h },
-        ], autoRotate: false } }, 0.86)
-      t.to(frank, { opacity: FRANK.ia.opacity, duration: 0.5, ease: 'power2.out' }, 0.9)
+        ], autoRotate: false },
+        onStart: wiLeanIn.start, onUpdate: wiLeanIn.update }, 0.72)
+      t.to(frank, { opacity: FRANK.ia.opacity, duration: 0.5, ease: 'power2.out' }, 0.78)
 
       // Entrée de l'écran « Quelles IA »
       t.to(iaHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.0)
@@ -279,6 +384,12 @@ function Onboarding() {
       buildSegments()
     }
 
+    // Flottement idle : Frank « respire » en continu et n'est jamais totalement figé.
+    // Sur un wrapper interne → cohabite avec les transitions sans conflit. Désactivé
+    // si reduced-motion ou en aperçu scrubé (frz) pour des captures stables.
+    const floatTweens =
+      frankFloatRef.current && !reduce && frz === null ? startFloat(frankFloatRef.current) : []
+
     // Recalage si la fenêtre change (les chemins sont en px) : on reconstruit
     // et on cale chaque segment sur l'étape courante.
     const onResize = () => {
@@ -294,6 +405,7 @@ function Onboarding() {
     return () => {
       window.removeEventListener('resize', onResize)
       intro?.kill()
+      floatTweens.forEach(t => t.kill())
       segsRef.current.forEach(t => t.kill())
     }
   }, [])
@@ -325,21 +437,23 @@ function Onboarding() {
     const launch = () => {
       if (cancelled) return
       const h = window.innerHeight, w = window.innerWidth
-      const frankH = Math.min(0.26 * w, 360) * FRANK.ia.scale
-      // Origine = au-dessus de la tête de Frank en gros plan
-      gsap.set(layer, { x: w / 2 + FRANK.ia.x * w, y: h / 2 + FRANK.ia.y * h - frankH * 0.48 })
+      // base CSS réelle = FRANK_SS × min(26vw, 360px) ; × scale (déjà /FRANK_SS) ⇒ hauteur réelle inchangée.
+      const frankH = FRANK_SS * Math.min(0.26 * w, 360) * FRANK.ia.scale
+      // Origine = sur la tête de Frank (recentrée verticalement)
+      gsap.set(layer, { x: w / 2 + FRANK.ia.x * w, y: h / 2 + FRANK.ia.y * h - frankH * 0.10 })
       gsap.set(bubbles, { xPercent: -50, yPercent: -50 })
       bubbles.forEach((b, i) => {
         const cfg = QUESTION_BUBBLES[i % QUESTION_BUBBLES.length]
-        const dur = 4 + cfg.rise * 2.5
-        const tl = gsap.timeline({ repeat: -1, repeatDelay: 3, delay: i * 1.6 + cfg.delay })
-        tl.fromTo(b,
-          { x: cfg.dx, y: 0, scale: 0.25 },
-          { x: cfg.dx + cfg.drift, y: -(0.45 + cfg.rise) * h, scale: 1, duration: dur, ease: 'power1.out' }, 0)
-        tl.fromTo(b,
-          { autoAlpha: 0 },
-          { autoAlpha: cfg.q ? 1 : 0.78, duration: 0.4, ease: 'power1.out' }, 0)
-        tl.to(b, { autoAlpha: 0, duration: 0.7, ease: 'power1.in' }, dur - 0.7)
+        const peak = cfg.q ? 1 : 0.82
+        const tl = gsap.timeline({ repeat: -1, repeatDelay: 2.2, delay: cfg.delay })
+        // état initial : minuscule et invisible, posée autour d'elle
+        tl.set(b, { x: cfg.dx, y: cfg.dy, scale: 0.2, autoAlpha: 0 })
+        // 1) pop : grossit d'un coup autour d'elle
+        tl.to(b, { scale: 1, autoAlpha: peak, duration: 0.5, ease: 'back.out(1.7)' }, 0)
+        // 2) dérive lente vers le haut, tout près d'elle
+        tl.to(b, { x: cfg.dx + cfg.drift, y: cfg.dy - cfg.rise * h, duration: 2.7, ease: 'sine.out' }, 0)
+        // 3) disparition : la taille ET l'opacité se réduisent
+        tl.to(b, { scale: 0.34, autoAlpha: 0, duration: 1.0, ease: 'power2.in' }, 1.7)
         loops.push(tl)
       })
     }
@@ -387,13 +501,17 @@ function Onboarding() {
       {/* Couche Frank — découplée du contenu pour « nager » d'un écran à l'autre */}
       <div className="ob-frank-layer">
         <div ref={frankRef} className="ob-frank">
-          <span className="ob-frank-glow" aria-hidden="true" />
-          <video ref={frankVideoRef} className="ob-frank-svg" autoPlay loop muted playsInline aria-hidden="true">
-            <source src="/assets/frank-sur-place.webm" type="video/webm" />
-          </video>
-          <video ref={frankSkillRef} className="ob-frank-skill" loop muted playsInline aria-hidden="true">
-            <source src="/assets/composition-2.webm" type="video/webm" />
-          </video>
+          {/* Wrapper interne : porte le flottement idle (wiggle) sans toucher
+              au placement/inclinaison globale gérés sur .ob-frank */}
+          <div ref={frankFloatRef} className="ob-frank-float">
+            <span className="ob-frank-glow" aria-hidden="true" />
+            <video ref={frankVideoRef} className="ob-frank-svg" autoPlay loop muted playsInline aria-hidden="true">
+              <source src="/assets/frank-sur-place.webm" type="video/webm" />
+            </video>
+            <video ref={frankSkillRef} className="ob-frank-skill" loop muted playsInline aria-hidden="true">
+              <source src="/assets/composition-2.webm" type="video/webm" />
+            </video>
+          </div>
         </div>
       </div>
 
