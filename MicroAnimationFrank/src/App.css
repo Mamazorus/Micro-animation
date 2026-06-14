@@ -308,6 +308,198 @@
   justify-content: space-between;
 }
 
+/* Barre de nav persistante : au-dessus des écrans (cliquable) ; apparition douce
+   une seule fois (à la sortie de l'accueil), puis elle reste — plus de fondu
+   entre les écrans. */
+.ob-nav--persist {
+  z-index: 5;
+  animation: ob-nav-appear 0.5s ease 0.2s both;
+}
+
+@keyframes ob-nav-appear {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Écran feed (arrivée sur l'app) — wireframe Figma habillé à la DA ─────── */
+/* Sidebar */
+.ob-feed-side {
+  position: relative;
+  width: clamp(220px, 19vw, 280px);
+  height: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 38px 26px 28px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.03);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.ob-feed-logo { margin: 0 0 44px; font-size: 34px; }
+.ob-feed-logo em {
+  font-family: var(--font-voice);
+  font-style: normal;
+  font-weight: 600;
+  color: #f6f6ff;
+  font-variation-settings: 'opsz' 40, 'wght' 600;
+}
+
+.ob-feed-nav { display: flex; flex-direction: column; gap: 14px; }
+.ob-feed-navitem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: rgba(246, 246, 255, 0.6);
+}
+.ob-feed-navitem.is-active { color: #f6f6ff; }
+.ob-feed-navdot {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(172, 165, 245, 0.18);
+}
+.ob-feed-navitem.is-active .ob-feed-navdot {
+  background: radial-gradient(120% 120% at 30% 20%, rgba(124, 114, 235, 0.5), rgba(94, 81, 241, 0.3));
+  border-color: rgba(124, 114, 235, 0.6);
+  box-shadow: 0 0 16px rgba(94, 81, 241, 0.4);
+}
+
+.ob-feed-user { margin-top: auto; display: flex; align-items: center; gap: 14px; }
+.ob-feed-avatar {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(94, 81, 241, 0.5));
+}
+.ob-feed-userinfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ob-feed-username {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
+  color: #f6f6ff;
+}
+.ob-feed-userrole {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: rgba(246, 246, 255, 0.45);
+}
+
+/* Zone principale */
+.ob-feed-main {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 40px 44px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  overflow: hidden;
+}
+
+.ob-feed-head { display: flex; flex-direction: column; gap: 22px; }
+.ob-feed-banner {
+  padding: 22px 30px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 17px rgba(172, 165, 245, 0.12);
+}
+.ob-feed-banner-h {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  color: rgba(246, 246, 255, 0.55);
+}
+.ob-feed-banner-p {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 1.7vw, 26px);
+  font-weight: 500;
+  color: #f6f6ff;
+}
+
+.ob-feed-filters { display: flex; flex-wrap: wrap; gap: 12px; }
+.ob-feed-chip {
+  padding: 10px 20px;
+  border-radius: 100px;
+  background: #100e25;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  color: #f6f6ff;
+  white-space: nowrap;
+}
+.ob-feed-chip.is-on {
+  border-color: rgba(124, 114, 235, 0.8);
+  box-shadow: inset 0 0 18px rgba(94, 81, 241, 0.25), 0 0 14px rgba(94, 81, 241, 0.3);
+}
+.ob-feed-chip--more { color: rgba(246, 246, 255, 0.55); }
+
+.ob-feed-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22px;
+  align-content: start;
+}
+.ob-feed-card {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 17px rgba(172, 165, 245, 0.12);
+}
+.ob-feed-thumb {
+  height: clamp(90px, 12vh, 130px);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(124, 114, 235, 0.22), rgba(40, 37, 77, 0.4));
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.ob-feed-card-body { padding: 14px 4px 0; }
+.ob-feed-card-name {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+  color: #f6f6ff;
+}
+.ob-feed-card-meta {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: rgba(246, 246, 255, 0.45);
+}
+.ob-feed-install {
+  margin-top: 14px;
+  padding: 11px;
+  border-radius: 100px;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 500;
+  color: #f6f6ff;
+  background: radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.3), rgba(94, 81, 241, 0.2));
+  border: 1px solid rgba(124, 114, 235, 0.4);
+}
+
 /* Bouton secondaire (Retour) : contour violet clair, fond transparent */
 .ob-btn--secondary {
   background: transparent;
@@ -881,8 +1073,8 @@
 /* Retour en bas à gauche (pas de barre de nav sur cet écran). */
 .ob-pres-back {
   position: absolute;
-  left: 6vw;
-  bottom: 6vh;
+  left: 32px;
+  bottom: 32px;
 }
 
 /* ─── Mot de passe — jauge de force + critères ────────────────────────────── */
@@ -938,6 +1130,166 @@
 /* Critère satisfait → mis en avant en violet clair */
 .ob-pwd-reqs li.is-ok { color: #b8b4f0; }
 .ob-pwd-reqs li.is-ok::marker { color: #7c72eb; }
+
+/* ─── Écran « Choisis ton plan » — 3 cartes glass ─────────────────────────── */
+.ob-plan-head {
+  position: absolute;
+  top: 11vh;
+  left: 6vw;
+  right: 6vw;
+}
+.ob-plan-head .ob-subtitle { max-width: 640px; }
+.ob-plan-head .ob-subtitle strong { font-weight: 600; }
+
+/* Groupe d'offres : centré, largeur plafonnée (cartes plus étroites = premium),
+   hauteur dictée par le contenu (plus de bande étirée trop haute). */
+.ob-plans {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(94vw, 1080px);
+  display: flex;
+  gap: clamp(16px, 2vw, 32px);
+  align-items: stretch;
+}
+
+/* Carte glass (verre dépoli) — pointer-events laissés au seul bouton « Choisir »
+   (le conteneur reste click-through, sinon il bloquerait les autres écrans). */
+.ob-plan-card {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 45vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 30px 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.ob-plan-card--popular {
+  border-color: #5650ff;
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25), 0 0 36px rgba(94, 81, 241, 0.55);
+}
+
+/* Mise en avant de Pro : les cartes latérales sont un peu plus petites — un peu
+   moins larges (flex) et un peu moins hautes (marges verticales). On évite
+   transform (piloté par GSAP à l'entrée) → flex + margin. */
+.ob-plan-card:not(.ob-plan-card--popular) {
+  flex: 0.93;
+  margin-block: 14px;
+}
+
+.ob-plan-card.is-chosen {
+  border-color: #7c72eb;
+  box-shadow: 0 0 0 1.5px #7c72eb, 0 0 28px rgba(94, 81, 241, 0.5);
+}
+
+.ob-plan-badge {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1.5px solid transparent;
+  /* Fond violet PLEIN (opacité 1) + contour en DÉGRADÉ (effet glassmorphisme) :
+     double background-clip → padding-box = le fond, border-box = le contour dégradé
+     (clair en haut-gauche, façon arête de verre, qui se fond vers le violet). */
+  background:
+    linear-gradient(160deg, #6f66dc 0%, #5044d4 100%) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.15) 42%, rgba(94, 81, 241, 0.35) 100%) border-box;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 0 18px rgba(94, 81, 241, 0.5);
+}
+
+/* Reflet diagonal (sheen) repris du bouton glass */
+.ob-plan-badge::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.48);
+  filter: blur(8px);
+  transform: rotate(31.35deg);
+  pointer-events: none;
+}
+
+.ob-plan-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.ob-plan-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(22px, 2vw, 30px);
+  color: #ededed;
+}
+
+.ob-plan-tagline {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: clamp(15px, 1.25vw, 19px);
+  color: #ededed;
+}
+
+.ob-plan-price {
+  margin: 4px 0;
+  font-family: var(--font-display);
+  font-size: clamp(15px, 1.25vw, 19px);
+  color: rgba(255, 255, 255, 0.5);
+}
+.ob-plan-price span {
+  font-weight: 600;
+  font-size: clamp(34px, 3.2vw, 46px);
+  color: #fff;
+}
+
+.ob-plan-feats {
+  margin: 0;
+  padding-left: 22px;
+  list-style: disc;
+  font-family: var(--font-ui);
+  font-size: clamp(13px, 1.05vw, 15px);
+  line-height: 1.7;
+  white-space: nowrap;
+  color: rgba(246, 246, 255, 0.5);
+}
+.ob-plan-card--popular .ob-plan-feats { color: #f6f6ff; }
+
+.ob-plan-choose {
+  align-self: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .ob-plans {
+    position: static;
+    transform: none;
+    width: auto;
+    flex-direction: column;
+    margin: 24vh 6vw 0;
+  }
+}
 
 @media (max-width: 900px) {
   .ob-pres-form {

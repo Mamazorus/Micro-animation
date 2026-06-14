@@ -7,7 +7,7 @@ import './App.css'
 
 gsap.registerPlugin(MotionPathPlugin)
 
-const STEPS = ['welcome', 'skill', 'why', 'ia', 'specialite', 'precise', 'present', 'password'] as const
+const STEPS = ['welcome', 'skill', 'why', 'ia', 'specialite', 'precise', 'present', 'password', 'plan', 'feed'] as const
 type Step = (typeof STEPS)[number]
 
 type FrankState = { x: number; y: number; scale: number; rot: number; opacity: number }
@@ -65,6 +65,21 @@ const FRANK: Record<'intro' | Step, FrankState> = {
   // Écran « Créer ton mot de passe » : même type d'écran que « On se présente »,
   // Frank reste dans la moitié gauche (dérive minime).
   password: fs(-0.27, 0.07,  1.55, -2),
+  // Écran « Choisis ton plan » : Frank petit, en haut à droite, qui dépasse du
+  // coin (comme dans le Figma) ; il y nage en arrivant.
+  plan: fs(0.38, -0.32,  0.92, 8),
+  // Écran feed (arrivée sur l'app) : Frank a « plongé » dans l'app → couche Frank
+  // invisible (opacity 0) ; la mascotte de domaine prend le relais dans la sidebar.
+  feed: { x: -0.42, y: 0.40, scale: 0.5 / FRANK_SS, rot: 0, opacity: 0 },
+}
+
+/* Frank arrive au coin haut-droit de la carte Expert. Le groupe de cartes est
+   centré et plafonné à 1080px (cf. .ob-plans) → on calcule sa position depuis le
+   bord droit du groupe plutôt qu'une fraction fixe (sinon il dérive selon la
+   largeur d'écran). On garde échelle/rotation/opacité de FRANK.plan. */
+const planFrankState = (): FrankState => {
+  const rightEdge = Math.min(0.47, 540 / window.innerWidth)  // bord droit du groupe (fraction depuis le centre)
+  return { ...FRANK.plan, x: rightEdge - 0.05, y: -0.28 }
 }
 
 const AI_OPTIONS = [
@@ -77,6 +92,38 @@ const AI_OPTIONS = [
   { name: 'Copilot', logo: 'copilot' },
   { name: 'Autre', logo: 'autre' },
 ]
+
+/* Écran « Choisis ton plan » — 3 offres (cartes glass). `popular` = mise en avant. */
+const PLANS = [
+  { key: 'decouverte', name: 'Découverte', tagline: 'Découvre ce que Frank peut faire.', price: '0€',
+    feats: ['Feed perso', '100 Skills à explorer', 'Installation mensuelle de 5 Skills', 'Sans carte bancaire'] },
+  { key: 'pro', name: 'Pro', tagline: 'Pour les solo & freelances', price: '15€', popular: true,
+    feats: ['+10 000 Skills à explorer', 'Installation sans limites', 'Mises à jour auto de tes Skills', 'Nouveautés en avant-première'] },
+  { key: 'expert', name: 'Expert', tagline: 'Pour les équipes', price: '60€',
+    feats: ['Installation sans limites', 'Éditeur de Skills', "Espaces d'équipe partagés", 'Crée et partage tes Skills privés', 'Accès prioritaire forte affluence'] },
+]
+
+/* Écran feed (arrivée sur l'app) — encore en placeholder côté contenu. */
+const FEED_SKILLS = [
+  { name: 'Skill 1', rating: '4.6', installs: '1k installs' },
+  { name: 'Skill 2', rating: '4.8', installs: '6k installs' },
+  { name: 'Skill 3', rating: '4.4', installs: '2.4k installs' },
+  { name: 'Skill 4', rating: '4.5', installs: '8k installs' },
+  { name: 'Skill 5', rating: '3.9', installs: '500 installs' },
+  { name: 'Skill 6', rating: '4.0', installs: '1.1k installs' },
+]
+const FEED_NAV = ['Feed personnalisé', 'Explorer', 'Mes Skills', 'Paramètres']
+
+/* Mascotte + rôle selon le domaine choisi (1re spécialité). Finance/Graphisme/Autre
+   retombent sur ui/ux (mascottes Figma pas encore exportables proprement). */
+const DOMAIN_INFO: Record<Spec, { mascot: string; role: string; label: string }> = {
+  code:      { mascot: 'dev',       role: 'DÉVELOPPEUR',    label: 'Code' },
+  graphisme: { mascot: 'uiux',      role: 'GRAPHISTE',      label: 'Graphisme' },
+  uiux:      { mascot: 'uiux',      role: 'UI/UX DESIGNER', label: 'UI/UX' },
+  marketing: { mascot: 'marketing', role: 'MARKETER',       label: 'Marketing' },
+  finance:   { mascot: 'uiux',      role: 'ANALYSTE',       label: 'Finance' },
+  autre:     { mascot: 'uiux',      role: 'CRÉATIF',        label: 'UI/UX' },
+}
 
 /* Écran « Plus précisément ? » — tags multi-select groupés par catégorie.
    On réutilise le composant .ob-ai-chip (variante --tag) plutôt que le style
@@ -242,6 +289,14 @@ function Onboarding() {
   const pwdHeadRef = useRef<HTMLDivElement>(null)
   const pwdFormRef = useRef<HTMLFormElement>(null)
   const pwdBackRef = useRef<HTMLDivElement>(null)
+  // Écran 9 — « Choisis ton plan »
+  const planHeadRef = useRef<HTMLDivElement>(null)
+  const planCardsRef = useRef<HTMLDivElement>(null)
+  const planNavRef = useRef<HTMLDivElement>(null)
+  // Écran 10 — feed (arrivée sur l'app)
+  const feedSideRef = useRef<HTMLDivElement>(null)
+  const feedHeadRef = useRef<HTMLDivElement>(null)
+  const feedCardsRef = useRef<HTMLDivElement>(null)
   // Bulles d'interrogation (transition « Pourquoi Frank ? » → IA)
   const bubblesRef = useRef<HTMLDivElement>(null)
   // Traînée de bulles laissée par Frank pendant ses déplacements
@@ -255,7 +310,7 @@ function Onboarding() {
   // Deep links de prévisualisation : ?ob=skill | ?ob=why (état figé), ?frz=0..1 (scrub)
   const [step, setStep] = useState<Step>(() => {
     const ob = new URLSearchParams(window.location.search).get('ob')
-    return ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+    return ob === 'feed' ? 'feed' : ob === 'plan' ? 'plan' : ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
   })
   const [selectedAis, setSelectedAis] = useState<Set<string>>(() => new Set())
   const [selectedSpecs, setSelectedSpecs] = useState<Set<Spec>>(() => new Set())
@@ -267,6 +322,7 @@ function Onboarding() {
   // Mot de passe « Créer ton mot de passe » (contrôlé)
   const [presPwd, setPresPwd] = useState('')
   const [presPwd2, setPresPwd2] = useState('')
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
 
   // Validations dérivées (recalculées à chaque rendu).
   // Accès à « Créer ton mot de passe » : les 2 champs remplis + CGU cochées.
@@ -279,6 +335,19 @@ function Onboarding() {
   const pwdScore = [pwdReqs.len, pwdReqs.upper, pwdReqs.special].filter(Boolean).length
   const pwdStrength = pwdScore <= 1 ? 'Faible' : pwdScore === 2 ? 'Moyen' : 'Fort'
   const pwdValid = pwdScore === 3 && presPwd !== '' && presPwd === presPwd2
+
+  // Barre de nav persistante : libellé + état (désactivé) selon l'étape courante.
+  const navLabel = step === 'present' || step === 'password' ? 'Enregistrer' : 'Suivant'
+  const navDisabled =
+    step === 'present' ? !presValid :
+    step === 'password' ? !pwdValid :
+    step === 'plan' ? !selectedPlan : false
+
+  // Personnalisation du feed à partir des choix du parcours.
+  const primaryDomain: Spec = [...selectedSpecs][0] ?? 'uiux'
+  const domainInfo = DOMAIN_INFO[primaryDomain]
+  const userName = presName.trim() || 'toi'
+  const userAis = [...selectedAis].slice(0, 2).join(' + ') || 'tes IA'
 
   useEffect(() => {
     const frank = frankRef.current
@@ -299,6 +368,8 @@ function Onboarding() {
     const prChips    = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-ai-chip')) : []
     const presFormEls = presFormRef.current ? Array.from(presFormRef.current.children) : []
     const pwdFormEls = pwdFormRef.current ? Array.from(pwdFormRef.current.children) : []
+    const planCards = planCardsRef.current ? Array.from(planCardsRef.current.children) : []
+    const feedCards = feedCardsRef.current ? Array.from(feedCardsRef.current.children) : []
 
     const params = new URLSearchParams(window.location.search)
     const ob  = params.get('ob')
@@ -307,7 +378,7 @@ function Onboarding() {
     reduceRef.current = reduce
 
     const startStep: Step =
-      ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+      ob === 'feed' ? 'feed' : ob === 'plan' ? 'plan' : ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
     const startIdx = STEPS.indexOf(startStep)
     idxRef.current = startIdx
 
@@ -328,6 +399,11 @@ function Onboarding() {
     gsap.set(presFormEls, { autoAlpha: 0, y: 20 })
     gsap.set([pwdHeadRef.current, pwdBackRef.current], { autoAlpha: 0, y: 24 })
     gsap.set(pwdFormEls, { autoAlpha: 0, y: 20 })
+    gsap.set([planHeadRef.current, planNavRef.current], { autoAlpha: 0, y: 24 })
+    gsap.set(planCards, { autoAlpha: 0, y: 24, scale: 0.96 })
+    gsap.set(feedSideRef.current, { autoAlpha: 0, x: -40 })
+    gsap.set(feedHeadRef.current, { autoAlpha: 0, y: 20 })
+    gsap.set(feedCards, { autoAlpha: 0, y: 24, scale: 0.97 })
 
     const applyMascotKind = (s: keyof typeof FRANK) => {
       const useSkill = s === 'skill'
@@ -345,7 +421,7 @@ function Onboarding() {
     applyMascotKind('welcome')
 
     const applyFrank = (s: keyof typeof FRANK) => {
-      const f = FRANK[s]
+      const f = s === 'plan' ? planFrankState() : FRANK[s]
       gsap.set(frank, {
         x: f.x * window.innerWidth,
         y: f.y * window.innerHeight,
@@ -578,15 +654,18 @@ function Onboarding() {
       t.to(prHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
       t.to([...prLabels, ...prChips], { autoAlpha: 0, y: 16, duration: 0.34, stagger: 0.015, ease: 'power2.in' }, 0)
 
-      // Frank avance au premier plan gauche (plus grand, droit) — dérive douce
+      // Frank avance au premier plan gauche (plus grand, droit) — dérive douce et
+      // DIRECTE : trajet 2 points, sans point intermédiaire au-dessus de la cible
+      // (l'ancien passait par y:0.02 puis redescendait à y:0.06 → Frank montait trop
+      // haut puis se reposait, d'où le « dépassement » peu fluide). curviness 1, à
+      // l'image du segment present → password.
       const presLean = makeLean(frank, FRANK.precise.rot, FRANK.present.rot, true)
       t.to(frank, { duration: 1.2, ease: 'sine.inOut',
         scale: FRANK.present.scale, rotation: FRANK.present.rot,
         motionPath: { path: [
           { x: FRANK.precise.x * w,  y: FRANK.precise.y * h },
-          { x: -0.30 * w,            y: 0.02 * h },
           { x: FRANK.present.x * w,  y: FRANK.present.y * h },
-        ], curviness: 1.5, autoRotate: false },
+        ], curviness: 1, autoRotate: false },
         onStart: presLean.start, onUpdate: presLean.update }, 0.1)
       t.to(frank, { opacity: FRANK.present.opacity, duration: 0.8, ease: 'power1.out' }, 0.3)
 
@@ -629,9 +708,78 @@ function Onboarding() {
       return t
     }
 
+    // Segment 7 — « Créer ton mot de passe » → « Choisis ton plan »
+    // Frank nage de la gauche vers le coin haut-droit en rapetissant (derrière les
+    // cartes), pendant que les 3 offres entrent une à une.
+    const buildPasswordPlan = () => {
+      const h = window.innerHeight, w = window.innerWidth
+      const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
+
+      // Sortie de « Créer ton mot de passe »
+      t.to(pwdBackRef.current, { autoAlpha: 0, y: 16, duration: 0.3, ease: 'power2.in' }, 0)
+      t.to(pwdHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
+      t.to(pwdFormEls, { autoAlpha: 0, y: 16, duration: 0.36, stagger: 0.05, ease: 'power2.in' }, 0)
+
+      // Frank nage en diagonale vers le coin haut-droit de la carte Expert, en
+      // rapetissant. curviness 1 (au lieu de 1.4) : la courbe ne gonfle plus au point
+      // de dépasser le coin avant de se caler → arrivée plus nette.
+      const pf = planFrankState()
+      const planLean = makeLean(frank, FRANK.password.rot, pf.rot, true)
+      t.to(frank, { duration: 1.35, ease: 'sine.inOut',
+        scale: pf.scale, rotation: pf.rot,
+        motionPath: { path: [
+          { x: FRANK.password.x * w, y: FRANK.password.y * h },
+          { x: 0.05 * w,             y: -0.08 * h },
+          { x: pf.x * w,             y: pf.y * h },
+        ], curviness: 1, autoRotate: false },
+        onStart: planLean.start, onUpdate: planLean.update }, 0.1)
+      t.to(frank, { opacity: pf.opacity, duration: 0.8, ease: 'power1.out' }, 0.4)
+
+      // Entrée de « Choisis ton plan » : titre, puis les 3 offres une à une
+      t.to(planHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.8)
+      t.to(planCards, { autoAlpha: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.12, ease: 'back.out(1.4)' }, 0.92)
+      t.to(planNavRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.2)
+
+      return t
+    }
+
+    // Segment 8 — « Choisis ton plan » → feed (arrivée sur l'app)
+    // Frank plonge vers le coin bas-gauche en rapetissant puis s'efface (il « entre »
+    // dans l'app) ; la sidebar glisse depuis la gauche, le bandeau et les cartes se
+    // matérialisent. La mascotte de domaine prend la place de Frank en bas de sidebar.
+    const buildPlanFeed = () => {
+      const h = window.innerHeight, w = window.innerWidth
+      const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
+
+      // Sortie de « Choisis ton plan »
+      t.to(planHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
+      t.to(planNavRef.current, { autoAlpha: 0, y: 16, duration: 0.3, ease: 'power2.in' }, 0)
+      t.to(planCards, { autoAlpha: 0, y: 24, scale: 0.96, duration: 0.4, stagger: 0.05, ease: 'power2.in' }, 0)
+
+      // Frank plonge vers le bas-gauche en rapetissant, puis s'efface (entre dans l'app)
+      const pf = planFrankState()
+      const feedLean = makeLean(frank, pf.rot, FRANK.feed.rot, true)
+      t.to(frank, { duration: 0.95, ease: 'power2.in',
+        scale: FRANK.feed.scale, rotation: FRANK.feed.rot,
+        motionPath: { path: [
+          { x: pf.x * w,         y: pf.y * h },
+          { x: -0.15 * w,        y: 0.2 * h },
+          { x: FRANK.feed.x * w, y: FRANK.feed.y * h },
+        ], curviness: 1.3, autoRotate: false },
+        onStart: feedLean.start, onUpdate: feedLean.update }, 0.1)
+      t.to(frank, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 0.7)
+
+      // L'app se matérialise : sidebar depuis la gauche, bandeau, puis cartes une à une
+      t.to(feedSideRef.current, { autoAlpha: 1, x: 0, duration: 0.6, ease: 'power3.out' }, 0.7)
+      t.to(feedHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.95)
+      t.to(feedCards, { autoAlpha: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.08, ease: 'back.out(1.3)' }, 1.1)
+
+      return t
+    }
+
     const buildSegments = () => {
       segsRef.current.forEach(t => t.kill())
-      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite(), buildSpecialitePrecise(), buildPrecisePresent(), buildPresentPassword()]
+      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite(), buildSpecialitePrecise(), buildPrecisePresent(), buildPresentPassword(), buildPasswordPlan(), buildPlanFeed()]
     }
 
     let intro: gsap.core.Timeline | undefined
@@ -653,7 +801,9 @@ function Onboarding() {
       else if (startStep === 'specialite') gsap.set([spHeadRef.current, ...spEls, ...spCards], { autoAlpha: 1, y: 0, scale: 1 })
       else if (startStep === 'precise') gsap.set([prHeadRef.current, ...prEls, ...prLabels, ...prChips], { autoAlpha: 1, y: 0, scale: 1 })
       else if (startStep === 'present') gsap.set([presHeadRef.current, presBackRef.current, ...presFormEls], { autoAlpha: 1, y: 0 })
-      else gsap.set([pwdHeadRef.current, pwdBackRef.current, ...pwdFormEls], { autoAlpha: 1, y: 0 })
+      else if (startStep === 'password') gsap.set([pwdHeadRef.current, pwdBackRef.current, ...pwdFormEls], { autoAlpha: 1, y: 0 })
+      else if (startStep === 'plan') gsap.set([planHeadRef.current, planNavRef.current, ...planCards], { autoAlpha: 1, y: 0, scale: 1 })
+      else gsap.set([feedSideRef.current, feedHeadRef.current, ...feedCards], { autoAlpha: 1, x: 0, y: 0, scale: 1 })
       buildSegments()
       if (frz !== null) {
         const seg = segsRef.current[Math.min(startIdx, segsRef.current.length - 1)]
@@ -1009,10 +1159,7 @@ function Onboarding() {
             <em>Frank</em> en a des milliers, prêts à installer.
           </p>
         </div>
-        <div ref={navRef} className="ob-nav">
-          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
-          <button className="ob-btn" onClick={goNext}>Suivant</button>
-        </div>
+        <div ref={navRef} className="ob-nav" />
       </div>
 
       {/* Écran 3 — Pourquoi Frank ? */}
@@ -1032,10 +1179,7 @@ function Onboarding() {
             </article>
           ))}
         </div>
-        <div ref={whyNavRef} className="ob-nav">
-          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
-          <button className="ob-btn" onClick={goNext}>Suivant</button>
-        </div>
+        <div ref={whyNavRef} className="ob-nav" />
       </div>
 
       {/* Écran 4 — Quelles IA tu utilises ? */}
@@ -1062,10 +1206,7 @@ function Onboarding() {
             )
           })}
         </div>
-        <div ref={iaNavRef} className="ob-nav">
-          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
-          <button className="ob-btn" onClick={goNext}>Suivant</button>
-        </div>
+        <div ref={iaNavRef} className="ob-nav" />
       </div>
 
       {/* Écran 5 — Quelle est ta spécialité ? (cartes = composant partagé Specialties) */}
@@ -1092,10 +1233,7 @@ function Onboarding() {
             )
           })}
         </div>
-        <div ref={spNavRef} className="ob-nav">
-          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
-          <button className="ob-btn" onClick={goNext}>Suivant</button>
-        </div>
+        <div ref={spNavRef} className="ob-nav" />
       </div>
 
       {/* Écran 6 — Plus précisément ? (tags multi-select groupés ; chips = .ob-ai-chip--tag) */}
@@ -1129,10 +1267,7 @@ function Onboarding() {
             </div>
           ))}
         </div>
-        <div ref={prNavRef} className="ob-nav">
-          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
-          <button className="ob-btn" onClick={goNext}>Suivant</button>
-        </div>
+        <div ref={prNavRef} className="ob-nav" />
       </div>
 
       {/* Écran 7 — On se présente (formulaire) */}
@@ -1157,11 +1292,8 @@ function Onboarding() {
             <span className="ob-check-box" aria-hidden="true" />
             <span className="ob-check-label">J'accepte les CGU et la politique de confidentialité.</span>
           </label>
-          <button type="submit" className="ob-btn ob-pres-submit" disabled={!presValid}>Enregistrer</button>
         </form>
-        <div ref={presBackRef} className="ob-pres-back">
-          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
-        </div>
+        <div ref={presBackRef} className="ob-pres-back" />
       </div>
 
       {/* Écran 8 — Créer ton mot de passe */}
@@ -1170,7 +1302,7 @@ function Onboarding() {
           <h1 className="ob-title ob-title--lg">Créer ton<br />mot de passe</h1>
           <p className="ob-subtitle">Choisis un mot de passe solide.</p>
         </div>
-        <form ref={pwdFormRef} className="ob-pres-form" onSubmit={e => e.preventDefault()}>
+        <form ref={pwdFormRef} className="ob-pres-form" onSubmit={e => { e.preventDefault(); if (pwdValid) goNext() }}>
           <div className="ob-field">
             <label className="ob-pr-label" htmlFor="ob-pwd">Mot de passe</label>
             <input id="ob-pwd" className="ob-input" type="password" autoComplete="new-password"
@@ -1190,12 +1322,97 @@ function Onboarding() {
             <input id="ob-pwd2" className="ob-input" type="password" autoComplete="new-password"
               value={presPwd2} onChange={e => setPresPwd2(e.target.value)} />
           </div>
-          <button type="submit" className="ob-btn ob-pres-submit" disabled={!pwdValid}>Enregistrer</button>
         </form>
-        <div ref={pwdBackRef} className="ob-pres-back">
-          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
+        <div ref={pwdBackRef} className="ob-pres-back" />
+      </div>
+
+      {/* Écran 9 — Choisis ton plan */}
+      <div className="ob-screen ob-screen--ia">
+        <div ref={planHeadRef} className="ob-plan-head">
+          <h1 className="ob-title ob-title--lg">Choisis ton plan</h1>
+          <p className="ob-subtitle"><strong>7 jours offerts</strong> sur Frank. Sans engagement, annule quand tu veux.</p>
+        </div>
+        <div ref={planCardsRef} className="ob-plans">
+          {PLANS.map(plan => (
+            <article
+              key={plan.key}
+              className={`ob-plan-card${plan.popular ? ' ob-plan-card--popular' : ''}${selectedPlan === plan.key ? ' is-chosen' : ''}`}
+            >
+              {plan.popular && <span className="ob-plan-badge">Le plus populaire</span>}
+              <div className="ob-plan-body">
+                <h2 className="ob-plan-name">{plan.name}</h2>
+                <p className="ob-plan-tagline">{plan.tagline}</p>
+                <p className="ob-plan-price"><span>{plan.price}</span> / mois</p>
+                <ul className="ob-plan-feats">
+                  {plan.feats.map(f => <li key={f}>{f}</li>)}
+                </ul>
+              </div>
+              <button type="button" className="ob-btn ob-plan-choose" onClick={() => setSelectedPlan(plan.key)}>
+                {selectedPlan === plan.key ? 'Choisi' : 'Choisir'}
+              </button>
+            </article>
+          ))}
+        </div>
+        <div ref={planNavRef} className="ob-nav" />
+      </div>
+
+      {/* Écran 10 — feed (arrivée sur l'app). Personnalisé avec les choix du parcours. */}
+      <div className="ob-screen ob-screen--feed">
+        <aside ref={feedSideRef} className="ob-feed-side">
+          <p className="ob-feed-logo"><em>Frank</em></p>
+          <nav className="ob-feed-nav">
+            {FEED_NAV.map((item, i) => (
+              <span key={item} className={`ob-feed-navitem${i === 0 ? ' is-active' : ''}`}>
+                <span className="ob-feed-navdot" aria-hidden="true" />
+                {item}
+              </span>
+            ))}
+          </nav>
+          <div className="ob-feed-user">
+            <img className="ob-feed-avatar" src={`/assets/mascots/${domainInfo.mascot}.png`} alt="" aria-hidden="true" />
+            <span className="ob-feed-userinfo">
+              <span className="ob-feed-username">{userName}</span>
+              <span className="ob-feed-userrole">{domainInfo.role}</span>
+            </span>
+          </div>
+        </aside>
+        <div className="ob-feed-main">
+          <div ref={feedHeadRef} className="ob-feed-head">
+            <div className="ob-feed-banner">
+              <p className="ob-feed-banner-h">Bienvenue</p>
+              <p className="ob-feed-banner-p">Salut {userName}, voici ton feed perso adapté à {userAis} et {domainInfo.label}.</p>
+            </div>
+            <div className="ob-feed-filters">
+              <span className="ob-feed-chip is-on">{domainInfo.label}</span>
+              {[...selectedAis].slice(0, 2).map(ai => <span key={ai} className="ob-feed-chip">{ai}</span>)}
+              <span className="ob-feed-chip ob-feed-chip--more">+ Filtres</span>
+            </div>
+          </div>
+          <div ref={feedCardsRef} className="ob-feed-grid">
+            {FEED_SKILLS.map(skill => (
+              <article key={skill.name} className="ob-feed-card">
+                <div className="ob-feed-thumb" aria-hidden="true" />
+                <div className="ob-feed-card-body">
+                  <h3 className="ob-feed-card-name">{skill.name}</h3>
+                  <p className="ob-feed-card-meta">★ {skill.rating} · {skill.installs}</p>
+                </div>
+                <span className="ob-feed-install">+ Installer</span>
+              </article>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Barre de nav persistante (Retour + action) : rendue une seule fois, hors
+          des écrans et NON animée par les transitions → elle ne disparaît plus
+          entre les écrans. Son libellé/état s'adapte à l'étape (Suivant /
+          Enregistrer + désactivation tant que le formulaire/plan n'est pas valide). */}
+      {step !== 'welcome' && step !== 'feed' && (
+        <div className="ob-nav ob-nav--persist">
+          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
+          <button className="ob-btn" onClick={goNext} disabled={navDisabled}>{navLabel}</button>
+        </div>
+      )}
     </div>
   )
 }
