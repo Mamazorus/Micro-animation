@@ -354,11 +354,14 @@
 
 .sp-mktg-body {
   flex-shrink: 0;
+  /* Décale le mégaphone vers la gauche pour que les ondes sortent du pavillon
+     (sinon les traits démarrent dans la corne, qui s'ouvre à droite). */
+  margin-right: 10px;
 }
 
 .sp-mktg-waves {
   position: absolute;
-  right: 8px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
   width: 14px;

@@ -1,3 +1,14 @@
+/* ─── Typographie de l'onboarding ───────────────────────────────────────────
+   --font-display : Google Sans Flex (sans géométrique chaud) → titres, cartes, corps.
+   --font-ui      : Inter → boutons, liens, chips (libellés d'interface).
+   --font-voice   : Roboto Serif (romain) → la voix de Frank (sous-titres) + le mot « Frank ».
+                    Serif contemporain à empattements fins, variable (opsz/wght). */
+:root {
+  --font-display: 'Google Sans Flex', system-ui, -apple-system, sans-serif;
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-voice: 'Roboto Serif', Georgia, 'Times New Roman', serif;
+}
+
 .nav-btn {
   position: fixed;
   top: 32px;
@@ -13,7 +24,7 @@
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(12px);
   color: white;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -133,27 +144,42 @@
 }
 
 .ob-title {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
   font-size: 36px;
-  font-weight: 600;
+  font-weight: 500;
   color: #f6f6ff;
   margin: 0;
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
+/* Le mot « Frank » posé dans un titre sans : accent serif (la voix/le nom). */
 .ob-title em {
-  font-style: italic;
-  font-weight: 600;
+  font-family: var(--font-voice);
+  font-style: normal;
+  font-weight: 500;
+  font-variation-settings: 'opsz' 48, 'wght' 500;
 }
 
+/* Sous-titres = voix de Frank : Roboto Serif (droit), registre « narrateur posé ».
+   Serif contemporain variable (opsz/wght) ; opsz réglé pour cette taille. */
 .ob-subtitle {
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 18px;
-  color: rgba(246, 246, 255, 0.55);
+  font-family: var(--font-voice);
+  font-style: normal;
+  font-weight: 450;
+  font-variation-settings: 'opsz' 18, 'wght' 450;
+  font-size: 19px;
+  color: rgba(246, 246, 255, 0.62);
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.55;
   max-width: 460px;
+}
+
+/* « Frank » dans une réplique déjà en serif : on l'épaissit pour garder le nom lisible. */
+.ob-subtitle em {
+  font-style: normal;
+  font-variation-settings: 'opsz' 18, 'wght' 600;
 }
 
 .ob-btn {
@@ -173,7 +199,7 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: #f6f6ff;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 16px;
   font-weight: 500;
   line-height: 1.5;
@@ -235,7 +261,7 @@
   border: none;
   background: none;
   color: rgba(246, 246, 255, 0.3);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-ui);
   font-size: 18px;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -293,7 +319,21 @@
   min-height: 100svh;
   width: 100%;
   overflow: hidden;
+  /* Base sombre toujours présente (jamais de flash clair) : le décor océanique
+     est sur sa propre couche .ob-bg-deco pour pouvoir apparaître en fondu. */
   background-color: #0b091b;
+}
+
+/* Décor océanique (dégradé du bas + vignette/lueur de bord) isolé sur sa propre
+   couche. Tant que Frank est en très gros plan d'intro, les coins transparents de
+   sa vidéo laissent voir ce qui est derrière lui ; on masque donc ce décor au
+   départ et on le révèle en fondu pendant le dézoom (cf. timeline `intro` dans
+   App.tsx). Sous Frank (z-index 1) et les écrans (z-index 2). */
+.ob-bg-deco {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background-image: radial-gradient(
     ellipse 277px 198px at 50% 193%,
     rgba(94, 81, 241, 0.10) 0%,
@@ -388,7 +428,8 @@
 
 .ob-why-card h2 {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
   font-size: 19px;
   font-weight: 600;
   color: #f6f6ff;
@@ -396,7 +437,7 @@
 
 .ob-why-card p {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-display);
   font-size: 13px;
   line-height: 1.5;
   color: rgba(246, 246, 255, 0.5);
@@ -444,6 +485,9 @@
     rgba(255, 255, 255, 0.62) 0%,
     rgba(255, 255, 255, 0.1) 40%,
     rgba(154, 148, 229, 0.14) 100%);
+  /* Verre dépoli : floute Frank + le fond derrière la bulle */
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   box-shadow:
     inset 0 1px 3px rgba(255, 255, 255, 0.55),
     inset 0 0 10px rgba(255, 255, 255, 0.22),
@@ -464,11 +508,44 @@
     inset 0 1px 3px rgba(255, 255, 255, 0.5),
     inset 0 0 12px rgba(172, 165, 245, 0.3),
     0 0 26px rgba(124, 114, 235, 0.5);
-  color: #e6e3ff;
-  font-family: system-ui, -apple-system, sans-serif;
+  color: rgba(230, 227, 255, 0.5);
+  font-family: 'Fredoka', system-ui, -apple-system, sans-serif;
   font-weight: 600;
   line-height: 1;
-  text-shadow: 0 0 10px rgba(172, 165, 245, 0.9);
+  text-shadow: 0 0 10px rgba(172, 165, 245, 0.4);
+}
+
+/* ─── Traînée de bulles — laissée par Frank pendant ses déplacements d'un
+   écran à l'autre (écho décoratif aux bulles d'interrogation, en plus discret).
+   Pas de backdrop-filter ici : il y en a beaucoup et elles bougent → l'éclat
+   interne + le glow suffisent à les rendre vitreuses sans coûter en perf. ──── */
+.ob-trail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  /* Sous Frank : z 0 comme .ob-bg-deco, mais placé après lui dans le DOM → la
+     traînée reste au-dessus du fond et passe DERRIÈRE le poulpe (z 1). */
+  z-index: 0;
+  pointer-events: none;
+}
+
+.ob-trail-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: radial-gradient(circle at 32% 26%,
+    rgba(255, 255, 255, 0.6) 0%,
+    rgba(255, 255, 255, 0.12) 42%,
+    rgba(154, 148, 229, 0.16) 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.5),
+    0 0 12px rgba(124, 114, 235, 0.4);
+  will-change: transform, opacity;
 }
 
 /* ─── Écran 4 — « Quelles IA tu utilises ? » ────────────────────────────── */
@@ -493,58 +570,91 @@
   top: 50%;
   right: 6vw;
   transform: translateY(-50%);
-  width: min(42vw, 540px);
+  width: min(44vw, 560px);
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 20px;
 }
 
+/* Carte de sélection d'IA — calquée sur Figma (node 1329-1933) :
+   fond sombre #100e25, lueur violette extérieure + glass interne. */
 .ob-ai-chip {
   position: relative;
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
-  border-radius: 100px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  border: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background: #100e25;
   color: #f6f6ff;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 17px;
+  font-family: var(--font-ui);
+  font-size: clamp(16px, 1.45vw, 21px);
   font-weight: 500;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.011em;
+  text-align: left;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  box-shadow:
+    0 4px 17.3px rgba(172, 165, 245, 0.24),
+    inset 0 0 85px rgba(0, 0, 0, 0.22),
+    inset 0 -8px 21.7px rgba(172, 165, 245, 0.1),
+    inset 0 8px 21.7px rgba(172, 165, 245, 0.3);
+  transition:
+    background 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .ob-ai-chip:hover {
-  border-color: rgba(154, 148, 229, 0.5);
-  background: rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 6px 22px rgba(172, 165, 245, 0.32),
+    inset 0 0 85px rgba(0, 0, 0, 0.2),
+    inset 0 -8px 21.7px rgba(172, 165, 245, 0.12),
+    inset 0 8px 21.7px rgba(172, 165, 245, 0.42);
 }
 
-.ob-ai-dot {
-  width: 26px;
-  height: 26px;
+.ob-ai-logo {
+  width: clamp(40px, 3.3vw, 48px);
+  height: clamp(40px, 3.3vw, 48px);
   flex-shrink: 0;
-  border-radius: 50%;
-  background: radial-gradient(120% 120% at 30% 25%,
-    rgba(172, 165, 245, 0.9) 0%,
-    rgba(94, 81, 241, 0.7) 45%,
-    rgba(54, 47, 139, 0.6) 100%);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  object-fit: contain;
+  transform-origin: center;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.3));
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Rebond moelleux du logo au moment où la carte devient sélectionnée */
+.ob-ai-chip.is-selected .ob-ai-logo {
+  animation: ob-logo-bounce 0.5s ease-out;
+}
+
+@keyframes ob-logo-bounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.13); }
+  70%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+.ob-ai-name {
+  white-space: nowrap;
+  text-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
 }
 
 .ob-ai-chip.is-selected {
-  border-color: rgba(124, 114, 235, 0.9);
   background:
-    radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.22), rgba(94, 81, 241, 0.16)),
-    rgba(94, 81, 241, 0.12);
+    radial-gradient(130% 130% at 50% 0%, rgba(124, 114, 235, 0.3), rgba(16, 14, 37, 0) 62%),
+    #100e25;
+  /* Lueur interne nettement plus violette à la sélection (haut + bas),
+     au lieu du lavande clair de l'état au repos. */
   box-shadow:
-    0 0 0 1px rgba(124, 114, 235, 0.5),
-    0 0 18px rgba(94, 81, 241, 0.45);
+    0 0 0 1.5px rgba(124, 114, 235, 0.9),
+    0 6px 26px rgba(94, 81, 241, 0.45),
+    inset 0 0 85px rgba(0, 0, 0, 0.18),
+    inset 0 -9px 24px rgba(124, 114, 235, 0.32),
+    inset 0 9px 26px rgba(124, 114, 235, 0.55);
 }
 
 /* Petit « pop » à la sélection, porté par un anneau (sans toucher au transform GSAP) */
@@ -552,20 +662,45 @@
   content: '';
   position: absolute;
   inset: -1px;
-  border-radius: 100px;
+  border-radius: 16px;
   border: 1px solid rgba(124, 114, 235, 0.7);
   opacity: 0;
   pointer-events: none;
 }
 
 .ob-ai-chip.is-selected::after {
-  animation: ob-chip-ring 0.45s ease;
+  animation: ob-chip-ring 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes ob-chip-ring {
-  0%   { opacity: 0.9; transform: scale(1); }
-  100% { opacity: 0;   transform: scale(1.12); }
+  0%   { opacity: 0.85; transform: scale(0.98); }
+  100% { opacity: 0;    transform: scale(1.09); }
 }
+
+/* ─── Écran spécialité — tuile d'icône animée dans une carte .ob-ai-chip ───
+   On réutilise l'enveloppe .ob-ai-chip (cohérence + glow + transition « mousse »)
+   et on glisse dedans la tuile sombre + icône animée partagée (Specialties.tsx). */
+.ob-sp-iconwrap {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f6f6ff;
+}
+
+/* La tuile native fait 67.5px → on la réduit pour s'aligner sur les logos IA. */
+.ob-sp-iconwrap .sp-icon-box {
+  flex-shrink: 0;
+  transform: scale(0.711);
+}
+
+/* L'icône reste BLANCHE même sélectionnée (comme le texte) ; seule la carte
+   change. Sa micro-animation joue quand même (classe is-active sur l'icône).
+   L'icône UI/UX bascule sur un dégradé violet quand active dans le composant
+   partagé (cf. Desktop35) → on force currentColor ici pour la garder blanche. */
+.ob-sp-iconwrap .sp-frame-bar { fill: currentColor; }
 
 @media (max-width: 900px) {
   .ob-ia-head { right: 6vw; top: 7vh; }
@@ -574,6 +709,8 @@
     transform: none;
     width: auto;
     margin: 34vh 6vw 0;
+    gap: 14px;
     grid-template-columns: 1fr 1fr;
   }
+  .ob-ai-chip { font-size: 16px; padding: 14px 16px; }
 }

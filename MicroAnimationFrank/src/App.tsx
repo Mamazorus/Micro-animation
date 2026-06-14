@@ -2,22 +2,24 @@ import { useState, useRef, useEffect } from 'react'
 import gsap from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import OnboardingGrid from './OnboardingGrid'
+import { SPECIALITES, SpecIconTile, type Spec } from './Specialties'
 import './App.css'
 
 gsap.registerPlugin(MotionPathPlugin)
 
-const STEPS = ['welcome', 'skill', 'why', 'ia'] as const
+const STEPS = ['welcome', 'skill', 'why', 'ia', 'specialite'] as const
 type Step = (typeof STEPS)[number]
 
 type FrankState = { x: number; y: number; scale: number; rot: number; opacity: number }
 
 /* Suréchantillonnage de la couche Frank. La <video> est rastérisée par le GPU à
    la taille de layout de .ob-frank (~360px) puis agrandie par le scale GSAP : au
-   gros plan d'intro (scale 7) la texture est étirée 7× → gros pixels, quelle que
+   gros plan d'intro (scale 11,2) la texture est étirée 11,2× → gros pixels, quelle que
    soit la résolution de la source. Parade : on layoute .ob-frank FRANK_SS× plus
    grand (var --ss, posé au montage + cf. App.css) et on divise tous les scales par
    FRANK_SS. Rendu identique, mais la texture est rastérisée FRANK_SS× plus fine.
-   FRANK_SS=4 ⇒ étirement résiduel 7/4≈1,75× au lieu de 7× (pixels imperceptibles)
+   FRANK_SS=4 ⇒ étirement résiduel 11,2/4=2,8× au lieu de 11,2× (au-delà de la limite du
+   net avec la source actuelle ; OK car la V2 de la vidéo sera en 4K — sinon monter FRANK_SS)
    sans suréchantillonner les filtres de flou au point de saccader. Ajustable. */
 const FRANK_SS = 4
 
@@ -41,14 +43,25 @@ const fs = (x: number, y: number, visualScale: number, rot: number): FrankState 
   ({ x, y, scale: visualScale / FRANK_SS, rot, opacity: depthOpacity(visualScale) })
 
 const FRANK: Record<'intro' | Step, FrankState> = {
-  intro:   fs(0,     0,     7,    0),
-  welcome: fs(0,    -0.16,  1,    8),
+  intro:   fs(0,     0,     11.6, 0),
+  welcome: fs(0,    -0.16,  1,    0),
   skill:   fs(0,     0.41,  2.3,  0),
   why:     fs(0.34, -0.32,  0.62, -4),
   ia:      fs(-0.16, 0,     2.4,  5),
+  // Écran spécialité : Frank reste exactement où il était sur l'écran IA.
+  specialite: fs(-0.16, 0,  2.4,  5),
 }
 
-const AI_OPTIONS = ['Claude', 'ChatGPT', 'Gemini', 'Mistral', 'Codex', 'Copilot', 'Loveable', 'Autre']
+const AI_OPTIONS = [
+  { name: 'Claude', logo: 'claude' },
+  { name: 'Gemini', logo: 'gemini' },
+  { name: 'Codex', logo: 'codex' },
+  { name: 'Loveable', logo: 'loveable' },
+  { name: 'ChatGPT', logo: 'chatgpt' },
+  { name: 'Mistral', logo: 'mistral' },
+  { name: 'Copilot', logo: 'copilot' },
+  { name: 'Autre', logo: 'autre' },
+]
 
 /* Bulles d'interrogation « libérées » autour de la tête de Frank sur l'écran IA.
    dx/dy = point d'apparition autour d'elle (px) ; rise = montée douce (× hauteur) ;
@@ -62,6 +75,18 @@ const QUESTION_BUBBLES = [
   { size: 64,  dx: -92,  dy: -70, rise: 0.04, drift: -16, delay: 1.7, q: false },
   { size: 82,  dx:  108, dy:  42, rise: 0.05, drift:  14, delay: 2.2, q: true  },
 ]
+
+/* Traînée de bulles laissée par Frank. Pendant un déplacement : émission basée
+   sur la DISTANCE parcourue (trail régulier quel que soit son rythme). Au repos :
+   une émission temporelle très clairsemée (il « respire » sur place). L'opacité
+   de chaque bulle suit la PROFONDEUR de Frank (son opacité courante) → quand il
+   est loin/estompé, ses bulles sont discrètes et se lisent bien DERRIÈRE lui même
+   à travers son corps translucide. Pop à sa position → montée → disparition ~2 s. */
+const TRAIL_POOL = 22          // nb de bulles recyclées en rotation
+const TRAIL_EMIT_EVERY = 155   // déplacement : distance (px) entre deux bulles (↑ = moins)
+const TRAIL_MAX_STEP = 220     // saut/frame au-delà = téléportation → on n'émet pas
+const TRAIL_IDLE_MIN = 1.6     // repos : intervalle min (s) entre deux bulles
+const TRAIL_IDLE_MAX = 3.0     // repos : intervalle max (s) — très clairsemé
 
 const WHY_CARDS = [
   { key: 'feed', Icon: IconSliders, title: 'Feed personnalisé',
@@ -109,11 +134,12 @@ function makeLean(target: gsap.TweenTarget, rotStart: number, rotEnd: number, st
 }
 
 /* Flottement idle « wiggle » : micro-mouvement organique pour que Frank ne soit
-   jamais totalement figé entre deux transitions. Porté par .ob-frank-float pour ne
-   pas entrer en conflit avec le placement/l'inclinaison gérés sur .ob-frank. Les
-   axes sont déphasés (durées premières entre elles + delays négatifs) et centrés
-   sur la pose de repos → flottement sous-marin non répétitif. yPercent/xPercent
-   sont relatifs à la taille apparente, donc neutres vis-à-vis de FRANK_SS. */
+   jamais totalement figé. Porté par .ob-frank-float pour ne pas entrer en conflit
+   avec le placement/l'inclinaison gérés sur .ob-frank.
+   Un seul driver temporel anime 4 sinusoïdes déphasées (périodes premières entre
+   elles → non répétitif), toutes multipliées par `state.amp` (0 = figé, 1 = plein).
+   On monte amp de 0→1 pendant l'intro pour que le flottement éclose au dézoom.
+   yPercent/xPercent sont relatifs à la taille apparente → neutres vis-à-vis de FRANK_SS. */
 const FLOAT = {
   y: 1.8,        // amplitude verticale (% de la taille apparente de Frank)
   x: 1.1,        // amplitude horizontale (%)
@@ -123,13 +149,21 @@ const FLOAT = {
 
 function startFloat(el: gsap.TweenTarget) {
   gsap.set(el, { transformOrigin: '50% 51%' })
-  const o: gsap.TweenVars = { ease: 'sine.inOut', yoyo: true, repeat: -1 }
-  return [
-    gsap.fromTo(el, { yPercent: -FLOAT.y },     { yPercent: FLOAT.y,      duration: 2.3, ...o }),
-    gsap.fromTo(el, { xPercent: -FLOAT.x },     { xPercent: FLOAT.x,      duration: 3.3, delay: -1.1, ...o }),
-    gsap.fromTo(el, { rotation: -FLOAT.rot },   { rotation: FLOAT.rot,    duration: 2.9, delay: -0.7, ...o }),
-    gsap.fromTo(el, { scale: 1 - FLOAT.scale }, { scale: 1 + FLOAT.scale, duration: 3.7, delay: -1.9, ...o }),
-  ]
+  const state = { amp: 0 }   // facteur global d'amplitude, monté progressivement
+  const TAU = Math.PI * 2
+  const driver = gsap.to({ t: 0 }, {
+    t: 1, duration: 1, repeat: -1, ease: 'none',
+    onUpdate(this: gsap.core.Tween) {
+      const time = this.totalTime(), a = state.amp   // totalTime() = horloge continue
+      gsap.set(el, {
+        yPercent: Math.sin(time * TAU / 2.3)       * FLOAT.y     * a,
+        xPercent: Math.sin(time * TAU / 3.3 + 1.1) * FLOAT.x     * a,
+        rotation: Math.sin(time * TAU / 2.9 + 2.3) * FLOAT.rot   * a,
+        scale: 1 + Math.sin(time * TAU / 3.7 + 0.7) * FLOAT.scale * a,
+      })
+    },
+  })
+  return { driver, state }
 }
 
 function Onboarding() {
@@ -137,6 +171,7 @@ function Onboarding() {
   const frankFloatRef = useRef<HTMLDivElement>(null)
   const frankVideoRef = useRef<HTMLVideoElement>(null)
   const frankSkillRef = useRef<HTMLVideoElement>(null)
+  const bgDecoRef = useRef<HTMLDivElement>(null)
   // Écran 1 — accueil
   const titleRef = useRef<HTMLHeadingElement>(null)
   const subRef   = useRef<HTMLParagraphElement>(null)
@@ -155,8 +190,15 @@ function Onboarding() {
   const iaHeadRef = useRef<HTMLDivElement>(null)
   const iaGridRef = useRef<HTMLDivElement>(null)
   const iaNavRef  = useRef<HTMLDivElement>(null)
+  // Écran 5 — « Quelle est ta spécialité ? »
+  const spSkipRef = useRef<HTMLButtonElement>(null)
+  const spHeadRef = useRef<HTMLDivElement>(null)
+  const spGridRef = useRef<HTMLDivElement>(null)
+  const spNavRef  = useRef<HTMLDivElement>(null)
   // Bulles d'interrogation (transition « Pourquoi Frank ? » → IA)
   const bubblesRef = useRef<HTMLDivElement>(null)
+  // Traînée de bulles laissée par Frank pendant ses déplacements
+  const trailRef = useRef<HTMLDivElement>(null)
 
   const segsRef      = useRef<gsap.core.Timeline[]>([])
   const idxRef       = useRef(0)
@@ -166,9 +208,10 @@ function Onboarding() {
   // Deep links de prévisualisation : ?ob=skill | ?ob=why (état figé), ?frz=0..1 (scrub)
   const [step, setStep] = useState<Step>(() => {
     const ob = new URLSearchParams(window.location.search).get('ob')
-    return ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+    return ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
   })
   const [selectedAis, setSelectedAis] = useState<Set<string>>(() => new Set())
+  const [selectedSpecs, setSelectedSpecs] = useState<Set<Spec>>(() => new Set())
 
   useEffect(() => {
     const frank = frankRef.current
@@ -182,6 +225,8 @@ function Onboarding() {
     const whyCards   = whyCardsRef.current ? Array.from(whyCardsRef.current.children) : []
     const iaEls      = [iaSkipRef.current, iaNavRef.current]
     const iaChips    = iaGridRef.current ? Array.from(iaGridRef.current.children) : []
+    const spEls      = [spSkipRef.current, spNavRef.current]
+    const spCards    = spGridRef.current ? Array.from(spGridRef.current.children) : []
 
     const params = new URLSearchParams(window.location.search)
     const ob  = params.get('ob')
@@ -190,7 +235,7 @@ function Onboarding() {
     reduceRef.current = reduce
 
     const startStep: Step =
-      ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+      ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
     const startIdx = STEPS.indexOf(startStep)
     idxRef.current = startIdx
 
@@ -202,6 +247,8 @@ function Onboarding() {
     gsap.set([...whyEls, ...whyCards], { autoAlpha: 0, y: 24 })
     gsap.set([iaHeadRef.current, ...iaEls], { autoAlpha: 0, y: 24 })
     gsap.set(iaChips, { autoAlpha: 0, y: 20, scale: 0.9 })
+    gsap.set([spHeadRef.current, ...spEls], { autoAlpha: 0, y: 24 })
+    gsap.set(spCards, { autoAlpha: 0, y: 20, scale: 0.9 })
 
     const applyMascotKind = (s: keyof typeof FRANK) => {
       const useSkill = s === 'skill'
@@ -345,12 +392,64 @@ function Onboarding() {
       return t
     }
 
+    // Segment 3 — « Quelles IA » → « Quelle est ta spécialité ? »
+    // « Frank part et revient » : il plonge par le bas en emportant les cartes
+    // IA, puis remonte exactement à la MÊME place en ramenant les cartes
+    // spécialité (sa position d'arrivée ne change pas). La traînée de bulles
+    // accompagne le trajet automatiquement (cf. trailEmitter).
+    const buildIaSpecialite = () => {
+      const h = window.innerHeight, w = window.innerWidth
+      const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
+
+      // Sortie de l'écran IA — chips aspirées vers le bas (vers Frank)
+      t.to([iaNavRef.current, iaSkipRef.current],
+        { autoAlpha: 0, y: 16, duration: 0.32, stagger: 0.06, ease: 'power2.in' }, 0)
+      t.to(iaHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
+      t.to(iaChips, { autoAlpha: 0, y: 70, scale: 0.82, duration: 0.42, stagger: 0.04, ease: 'power2.in' }, 0)
+
+      // Frank plonge par le bas en les emportant, puis disparaît
+      const iaLeanOut = makeLean(frank, FRANK.ia.rot, FRANK.ia.rot, false)
+      t.to(frank, { duration: 0.7, ease: 'power2.in',
+        motionPath: { path: [
+          { x: FRANK.ia.x * w,            y: FRANK.ia.y * h },
+          { x: FRANK.ia.x * w + 0.05 * w, y: 0.5 * h },
+          { x: FRANK.ia.x * w,            y: 1.12 * h },
+        ], curviness: 1.3, autoRotate: false },
+        onStart: iaLeanOut.start, onUpdate: iaLeanOut.update }, 0.12)
+      t.to(frank, { opacity: 0, duration: 0.28, ease: 'power2.in' }, 0.46)
+
+      // Invisible : on le replace tout en bas, puis il remonte à la même place
+      t.set(frank, { x: FRANK.specialite.x * w, y: 1.14 * h, scale: FRANK.specialite.scale, rotation: FRANK.specialite.rot }, 0.76)
+      const spLeanIn = makeLean(frank, FRANK.specialite.rot, FRANK.specialite.rot, true)
+      t.to(frank, { duration: 0.95, ease: 'power3.out',
+        motionPath: { path: [
+          { x: FRANK.specialite.x * w, y: 1.14 * h },
+          { x: FRANK.specialite.x * w, y: FRANK.specialite.y * h },
+        ], autoRotate: false },
+        onStart: spLeanIn.start, onUpdate: spLeanIn.update }, 0.76)
+      t.to(frank, { opacity: FRANK.specialite.opacity, duration: 0.5, ease: 'power2.out' }, 0.82)
+
+      // Entrée de l'écran spécialité — les cartes éclosent pendant qu'il remonte
+      t.to(spHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.04)
+      t.to(spCards, { autoAlpha: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.05, ease: 'back.out(1.5)' }, 1.12)
+      t.to([spSkipRef.current, spNavRef.current],
+        { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 1.22)
+
+      return t
+    }
+
     const buildSegments = () => {
       segsRef.current.forEach(t => t.kill())
-      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa()]
+      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite()]
     }
 
     let intro: gsap.core.Timeline | undefined
+
+    // Flottement idle (cf. startFloat) : créé à amplitude nulle ; il éclot pendant
+    // l'intro (dézoom gros plan → petit) ou apparaît en fondu en aperçu d'écran.
+    // Pas de flottement en reduced-motion ni en aperçu scrubé (frz) — captures stables.
+    const float =
+      frankFloatRef.current && !reduce && frz === null ? startFloat(frankFloatRef.current) : null
 
     if (ob || frz !== null) {
       // Aperçu figé : on pose l'état de départ et on scrub éventuellement le bon segment
@@ -359,36 +458,150 @@ function Onboarding() {
       if (startStep === 'welcome') gsap.set(welcomeEls, { autoAlpha: 1, y: 0 })
       else if (startStep === 'skill') gsap.set(skillEls, { autoAlpha: 1, y: 0 })
       else if (startStep === 'why') gsap.set([...whyEls, ...whyCards], { autoAlpha: 1, y: 0 })
-      else gsap.set([iaHeadRef.current, ...iaEls, ...iaChips], { autoAlpha: 1, y: 0, scale: 1 })
+      else if (startStep === 'ia') gsap.set([iaHeadRef.current, ...iaEls, ...iaChips], { autoAlpha: 1, y: 0, scale: 1 })
+      else gsap.set([spHeadRef.current, ...spEls, ...spCards], { autoAlpha: 1, y: 0, scale: 1 })
       buildSegments()
       if (frz !== null) {
         const seg = segsRef.current[Math.min(startIdx, segsRef.current.length - 1)]
         seg.progress(parseFloat(frz))
+      } else if (float) {
+        // Aperçu figé d'un écran (pas de dézoom) : le flottement apparaît en fondu doux.
+        gsap.to(float.state, { amp: 1, duration: 0.8, ease: 'power1.out' })
       }
     } else {
       // Gros plan d'ouverture : les yeux pile au centre, puis dézoom vers l'accueil
       applyFrank('intro')
+      // Décor océanique masqué tant que Frank emplit l'écran (ses coins transparents
+      // laisseraient voir le fond à quelques moments) → révélé en fondu au dézoom.
+      gsap.set(bgDecoRef.current, { autoAlpha: 0 })
       intro = gsap.timeline({ delay: reduce ? 0 : 1.0 })
       if (reduce) {
         applyFrank('welcome')
         gsap.set(welcomeEls, { autoAlpha: 1, y: 0 })
+        gsap.set(bgDecoRef.current, { autoAlpha: 1 })
       } else {
         intro.to(frank, {
           x: 0, y: FRANK.welcome.y * window.innerHeight,
           scale: FRANK.welcome.scale, rotation: FRANK.welcome.rot, opacity: FRANK.welcome.opacity,
           duration: 1.1, ease: 'expo.out',
-        }).to(welcomeEls, {
+        })
+        .to(bgDecoRef.current, { autoAlpha: 1, duration: 0.9, ease: 'power2.out' }, 0)
+        .to(welcomeEls, {
           autoAlpha: 1, y: 0, stagger: 0.13, duration: 0.55, ease: 'power2.out',
         }, '-=0.4')
+        // Le flottement éclot pile pendant le dézoom (gros plan → Frank petit).
+        if (float) intro.to(float.state, { amp: 1, duration: 1.1, ease: 'power1.inOut' }, 0)
       }
       buildSegments()
     }
 
-    // Flottement idle : Frank « respire » en continu et n'est jamais totalement figé.
-    // Sur un wrapper interne → cohabite avec les transitions sans conflit. Désactivé
-    // si reduced-motion ou en aperçu scrubé (frz) pour des captures stables.
-    const floatTweens =
-      frankFloatRef.current && !reduce && frz === null ? startFloat(frankFloatRef.current) : []
+    // Traînée de bulles : un ticker lit la position de Frank image par image.
+    // En déplacement (animatingRef) → émission liée à la DISTANCE parcourue.
+    // Au repos → émission temporelle très clairsemée (il respire sur place).
+    // L'opacité des bulles suit sa profondeur ; téléportations (saut énorme) et
+    // moments invisibles (opacité basse) sont ignorés pour ne pas émettre à vide.
+    const trailLayer = trailRef.current
+    let trailEmitter: ((time: number, dt: number) => void) | null = null
+    if (trailLayer && !reduce) {
+      const pool = Array.from(trailLayer.children) as HTMLElement[]
+      gsap.set(pool, { xPercent: -50, yPercent: -50 })
+      let slot = 0
+      let lx: number | null = null
+      let ly = 0
+      let acc = 0                                              // distance accumulée (déplacement)
+      let idleAcc = 0                                          // temps accumulé en ms (repos)
+      let idleTarget = gsap.utils.random(TRAIL_IDLE_MIN, TRAIL_IDLE_MAX) * 1000
+      let wasEligible = false                                  // déjà posé sur un écran ?
+
+      const emit = (cx: number, cy: number, depth: number) => {
+        const b = pool[slot]
+        slot = (slot + 1) % pool.length
+        gsap.killTweensOf(b)                       // recycle la bulle la plus ancienne
+        const size  = gsap.utils.random(9, 28)
+        const rise  = gsap.utils.random(34, 78)    // montée (px) — les bulles remontent
+        const drift = gsap.utils.random(-22, 22)   // dérive latérale
+        // Opacité au pic liée à la profondeur de Frank (son opacité courante) :
+        // loin/estompé → bulles discrètes → se lisent bien derrière lui.
+        const peak  = gsap.utils.random(0.4, 0.7) * depth
+        const life  = gsap.utils.random(1.8, 2.6)  // durée de vie totale (s)
+        gsap.set(b, { width: size, height: size })
+        const tl = gsap.timeline()
+        tl.set(b, { x: cx + gsap.utils.random(-12, 12), y: cy + gsap.utils.random(-12, 12),
+                    scale: 0.2, autoAlpha: 0 })
+        tl.to(b, { scale: 1, autoAlpha: peak, duration: 0.4, ease: 'back.out(2)' }, 0)
+        tl.to(b, { y: '-=' + rise, x: '+=' + drift, duration: life, ease: 'sine.out' }, 0)
+        tl.to(b, { scale: 0.4, autoAlpha: 0, duration: 0.9, ease: 'power2.in' }, life - 0.9)
+      }
+
+      // Point d'apparition AU REPOS : sur un côté ou au-dessus de Frank, jamais
+      // sur son corps. L'écart suit sa taille apparente (largeur CSS × --ss ×
+      // scale courant, même formule que la couche bulles « ? »), puis on clampe
+      // à l'écran pour ne pas émettre dans le vide hors cadre.
+      const idleSpawn = (cx: number, cy: number, scale: number) => {
+        const w = window.innerWidth, h = window.innerHeight
+        const appSize = FRANK_SS * Math.min(0.26 * w, 360) * scale
+        let sx = cx, sy = cy
+        switch (gsap.utils.random(['up', 'left', 'right'])) {
+          case 'left':
+            sx = cx - gsap.utils.random(0.5, 0.72) * appSize
+            sy = cy + gsap.utils.random(-0.32, 0.18) * appSize
+            break
+          case 'right':
+            sx = cx + gsap.utils.random(0.5, 0.72) * appSize
+            sy = cy + gsap.utils.random(-0.32, 0.18) * appSize
+            break
+          default: // au-dessus
+            sx = cx + gsap.utils.random(-0.3, 0.3) * appSize
+            sy = cy - gsap.utils.random(0.5, 0.78) * appSize
+        }
+        return { x: gsap.utils.clamp(24, w - 24, sx), y: gsap.utils.clamp(24, h - 24, sy) }
+      }
+
+      trailEmitter = (_time, dt) => {
+        const op    = parseFloat(String(gsap.getProperty(frank, 'opacity')))
+        const scale = parseFloat(String(gsap.getProperty(frank, 'scale')))
+        const x     = parseFloat(String(gsap.getProperty(frank, 'x')))
+        const y     = parseFloat(String(gsap.getProperty(frank, 'y')))
+        const cx = window.innerWidth / 2 + x
+        const cy = window.innerHeight / 2 + y
+        const depth = gsap.utils.clamp(0, 1, op)
+
+        if (animatingRef.current) {
+          // Déplacement : une bulle tous les TRAIL_EMIT_EVERY px parcourus.
+          idleAcc = 0
+          wasEligible = false                              // l'arrivée déclenchera une 1re bulle rapide
+          if (lx === null) { lx = x; ly = y; return }
+          const dx = x - lx, dy = y - ly
+          const d = Math.sqrt(dx * dx + dy * dy)
+          lx = x; ly = y
+          if (d > TRAIL_MAX_STEP || op < 0.25) { acc = 0; return }  // téléportation / invisible
+          acc += d
+          while (acc >= TRAIL_EMIT_EVERY) {
+            acc -= TRAIL_EMIT_EVERY
+            emit(cx, cy, depth)
+          }
+        } else {
+          // Repos : émission temporelle clairsemée tant que Frank est posé sur un
+          // écran (scale < 0.9 exclut le gros plan d'intro) et visible — inclut
+          // l'accueil « Salut, moi c'est Frank ».
+          lx = null; acc = 0
+          if (op < 0.4 || scale >= 0.9) { idleAcc = 0; wasEligible = false; return }
+          if (!wasEligible) {                  // fraîchement posé sur l'écran → 1re bulle rapide
+            wasEligible = true
+            idleAcc = 0
+            idleTarget = gsap.utils.random(0.5, 1.2) * 1000
+          }
+          idleAcc += dt
+          if (idleAcc >= idleTarget) {
+            idleAcc = 0
+            idleTarget = gsap.utils.random(TRAIL_IDLE_MIN, TRAIL_IDLE_MAX) * 1000
+            const s = idleSpawn(cx, cy, scale)   // sur un côté ou au-dessus, pas sur le corps
+            emit(s.x, s.y, depth)
+          }
+        }
+      }
+      gsap.ticker.add(trailEmitter)
+    }
 
     // Recalage si la fenêtre change (les chemins sont en px) : on reconstruit
     // et on cale chaque segment sur l'étape courante.
@@ -405,8 +618,11 @@ function Onboarding() {
     return () => {
       window.removeEventListener('resize', onResize)
       intro?.kill()
-      floatTweens.forEach(t => t.kill())
+      float?.driver.kill()
+      if (float) gsap.killTweensOf(float.state)
       segsRef.current.forEach(t => t.kill())
+      if (trailEmitter) gsap.ticker.remove(trailEmitter)
+      if (trailLayer) gsap.killTweensOf(Array.from(trailLayer.children))
     }
   }, [])
 
@@ -496,8 +712,21 @@ function Onboarding() {
     })
   }
 
+  // Spécialité = choix multiple (comme les IA) ; re-cliquer désélectionne.
+  const toggleSpec = (id: Spec) =>
+    setSelectedSpecs(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
   return (
     <div className={`ob-root onboarding-bg is-${step}`}>
+      {/* Décor océanique : masqué pendant le gros plan d'intro, révélé en fondu
+          pendant le dézoom (cf. effet d'intro). La base sombre reste, elle, visible. */}
+      <div ref={bgDecoRef} className="ob-bg-deco" aria-hidden="true" />
+
       {/* Couche Frank — découplée du contenu pour « nager » d'un écran à l'autre */}
       <div className="ob-frank-layer">
         <div ref={frankRef} className="ob-frank">
@@ -525,6 +754,14 @@ function Onboarding() {
           >
             {b.q ? '?' : null}
           </span>
+        ))}
+      </div>
+
+      {/* Traînée de bulles — libérée le long du trajet de Frank pendant les
+          transitions d'écran (pool recyclé, piloté par gsap.ticker) */}
+      <div ref={trailRef} className="ob-trail" aria-hidden="true">
+        {Array.from({ length: TRAIL_POOL }, (_, i) => (
+          <span key={i} className="ob-trail-bubble" />
         ))}
       </div>
 
@@ -586,7 +823,7 @@ function Onboarding() {
           <p className="ob-subtitle">Choix multiple. On adaptera tes Skills à chacune.</p>
         </div>
         <div ref={iaGridRef} className="ob-ia-grid">
-          {AI_OPTIONS.map(name => {
+          {AI_OPTIONS.map(({ name, logo }) => {
             const selected = selectedAis.has(name)
             return (
               <button
@@ -596,13 +833,43 @@ function Onboarding() {
                 aria-pressed={selected}
                 onClick={() => toggleAi(name)}
               >
-                <span className="ob-ai-dot" aria-hidden="true" />
-                {name}
+                <img className="ob-ai-logo" src={`/assets/ai-logos/${logo}.svg`} alt="" aria-hidden="true" />
+                <span className="ob-ai-name">{name}</span>
               </button>
             )
           })}
         </div>
         <div ref={iaNavRef} className="ob-nav">
+          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
+          <button className="ob-btn" onClick={goNext}>Suivant</button>
+        </div>
+      </div>
+
+      {/* Écran 5 — Quelle est ta spécialité ? (cartes = composant partagé Specialties) */}
+      <div className="ob-screen ob-screen--ia">
+        <button ref={spSkipRef} className="ob-skip">Passer</button>
+        <div ref={spHeadRef} className="ob-ia-head">
+          <h1 className="ob-title ob-title--lg">Quelle est ta<br />spécialité&nbsp;?</h1>
+          <p className="ob-subtitle">Choisis tes domaines (plusieurs possibles).</p>
+        </div>
+        <div ref={spGridRef} className="ob-ia-grid">
+          {SPECIALITES.map(({ id, label }) => {
+            const active = selectedSpecs.has(id)
+            return (
+              <button
+                key={id}
+                type="button"
+                className={`ob-ai-chip${active ? ' is-selected' : ''}`}
+                aria-pressed={active}
+                onClick={() => toggleSpec(id)}
+              >
+                <span className="ob-sp-iconwrap"><SpecIconTile id={id} active={active} /></span>
+                <span className="ob-ai-name">{label}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div ref={spNavRef} className="ob-nav">
           <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
           <button className="ob-btn" onClick={goNext}>Suivant</button>
         </div>
