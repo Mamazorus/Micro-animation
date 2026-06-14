@@ -1,121 +1,145 @@
 /* ============================================================
    Skillflow / Frank — design tokens
-   DA océanique : profondeur, lueur, reflets, dégradés.
-   Couleurs échantillonnées sur les visuels du projet.
+   Source : page Figma "Proto final" (fichier Ve1aiwPr0BzWgEZORQB68v).
+   Valeurs relevées directement dans le design.
    ============================================================ */
 
-:root {
-  /* Fonds — profondeur océanique */
-  --bg-abyss:    #07060E; /* le plus sombre, bords / vignettage */
-  --bg-deep:     #0B0820; /* fond principal navy */
-  --bg-sheet:    #0E0E11; /* écrans (near-black neutre) */
-  --bg-surface:  #14121F; /* cartes / surfaces surélevées */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Libre+Baskerville:ital,wght@0,400;0,700&family=Roboto+Slab:wght@400&display=swap');
+/* Google Sans Flex (titres/corps) n'est pas sur Google Fonts :
+   l'auto-héberger si licence, sinon remplacer par Plus Jakarta Sans / Geist / Inter. */
 
-  /* Violet de marque — la lueur */
-  --violet-deep:   #4F46C9;
-  --violet:        #6B5FEE; /* signature : corps de Frank, boutons, actif */
-  --violet-bright: #7D74EB;
-  --violet-glow:   #8B82F2;
+:root {
+  /* Fond */
+  --bg:            #0B091B;
+
+  /* Violet de marque */
+  --violet:        #5E51F1; /* signature */
+  --violet-bright: #7C72EB;
+  --violet-soft:   #9A94E5;
+  --violet-glow:   #ACA5F5;
+  --violet-deep:   #4A40BE;
+  --violet-deeper: #362F8B;
 
   /* Texte */
-  --text:        #FFFFFF;
-  --text-muted:  #A9A8B8;
+  --text:          #F6F6FF;
+  --text-card:     #EDEDED;
+  --text-muted:    rgba(246,246,255,.3);
 
-  /* Mascotte — yeux */
-  --eye-black:   #050505;
-  --eye-rim:     #F4F4F6;
+  /* Glass */
+  --glass-fill:    rgba(255,255,255,.05);
+  --glass-border:  rgba(255,255,255,.10);
+
+  /* Placeholder — PAS la DA */
+  --placeholder:   #A3A3A3;
+
+  /* Polices */
+  --font-display:  "Google Sans Flex", "Plus Jakarta Sans", "Inter", sans-serif;
+  --font-slab:     "Roboto Slab", serif;
+  --font-brand:    "Libre Baskerville", serif;
+  --font-ui:       "Inter", sans-serif;
 
   /* Rayons */
-  --r-pill: 999px;
-  --r-sm: 14px;
-  --r-lg: 24px;
+  --r-pill: 120px;
+  --r-card: 16px;
+  --r-field: 14px;
 
   /* Mouvement */
-  --ease-out: cubic-bezier(.22, 1, .36, 1);
+  --ease: cubic-bezier(.22, 1, .36, 1);
 }
 
-/* Fond océanique : lumière venue d'en haut sur dégradé profond */
-.ocean-bg {
+/* Fond océanique : base + glow violet bas + vignettage + lueur de bord */
+.app-bg {
+  position: relative;
   background:
-    radial-gradient(120% 80% at 75% 12%, rgba(110,98,238,.22) 0%, transparent 55%),
-    radial-gradient(90% 70% at 30% 90%, rgba(79,70,201,.18) 0%, transparent 60%),
-    linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-abyss) 100%);
-}
-
-/* Lueur violette (élément actif, Frank) */
-.glow {
+    radial-gradient(ellipse 80% 60% at 50% 115%,
+      rgba(94,81,241,.18) 0%,
+      rgba(58,52,131,.10) 35%,
+      rgba(31,29,49,.05) 70%,
+      transparent 100%),
+    var(--bg);
   box-shadow:
-    0 0 60px rgba(110,98,238,.45),
-    0 0 18px rgba(139,130,242,.55);
-}
-.glow-text { text-shadow: 0 0 18px rgba(139,130,242,.6); }
-
-/* Profondeur : reflet de bord + ombre portée large */
-.depth {
-  box-shadow:
-    0 24px 60px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.10);
+    inset 0 0 187px rgba(0,0,0,.25),
+    inset 0 85px 76px rgba(172,165,245,.04),
+    inset 0 -85px 76px rgba(172,165,245,.04);
 }
 
-/* Surface vitrée / gélifiée (remplace les carrés gris plats) */
-.glass {
-  background: linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: var(--r-lg);
-  box-shadow:
-    0 24px 60px rgba(0,0,0,.45),
-    inset 0 1px 0 rgba(255,255,255,.12);
+/* Surface glass / carte */
+.card {
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: var(--r-card);
+  padding: 32px 24px;
+  display: flex; flex-direction: column; gap: 22px;
 }
 
-/* Bouton primaire (Commencer / Suivant) */
+/* Boutons pilule + éclat de lumière diagonal */
+.btn {
+  position: relative; overflow: hidden; cursor: pointer;
+  border-radius: var(--r-pill); padding: 24px 48px;
+  font: 500 24px/1.5 var(--font-ui); letter-spacing: -0.96px;
+  color: var(--text);
+}
+.btn::before {
+  content: ""; position: absolute; left: -22px; top: -16px;
+  width: 32px; height: 96px; background: rgba(255,255,255,.48);
+  filter: blur(14.6px); transform: rotate(31.35deg); pointer-events: none;
+}
 .btn-primary {
-  padding: 14px 26px; border: 0; border-radius: var(--r-pill); color: #fff;
-  background: linear-gradient(180deg, var(--violet) 0%, var(--violet-deep) 100%);
-  box-shadow: 0 10px 28px rgba(79,70,201,.45), inset 0 1px 0 rgba(255,255,255,.28);
-  cursor: pointer; transition: transform .2s var(--ease-out), filter .2s var(--ease-out);
+  border: 2px solid var(--violet);
+  background:
+    radial-gradient(120% 180% at 90% 10%,
+      rgba(154,148,229,.34) 0%, rgba(124,114,235,.30) 25%,
+      rgba(94,81,241,.28) 50%, rgba(74,64,190,.20) 75%,
+      rgba(54,47,139,.18) 100%),
+    rgba(94,81,241,.18);
 }
-.btn-primary:hover { filter: brightness(1.06); }
-.btn-primary:active { transform: translateY(1px); }
-
-/* Bouton secondaire (Retour) + lien discret (Passer) */
-.btn-ghost {
-  padding: 14px 26px; border-radius: var(--r-pill); color: #fff;
-  background: transparent; border: 1px solid rgba(255,255,255,.18); cursor: pointer;
+.btn-secondary { border: 2px solid var(--violet-soft); background: transparent; }
+.link-skip {
+  font: 500 20px/1.5 var(--font-ui); letter-spacing: -0.8px;
+  color: var(--text-muted); background: none; border: 0; cursor: pointer;
 }
-.link-skip { color: var(--text-muted); background: none; border: 0; cursor: pointer; }
 
-/* Chip de sélection (IA, sous-domaines) */
+/* Chip de sélection */
 .chip {
-  padding: 12px 16px; border-radius: var(--r-sm); color: #fff;
-  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.10);
-  cursor: pointer; transition: all .2s var(--ease-out);
+  padding: 12px 16px; border-radius: var(--r-field); color: var(--text);
+  background: var(--glass-fill); border: 1px solid var(--glass-border);
+  cursor: pointer; transition: all .2s var(--ease);
 }
 .chip[aria-selected="true"] {
   border-color: var(--violet);
-  box-shadow: 0 0 0 1px var(--violet), 0 0 22px rgba(110,98,238,.40);
-  background: rgba(110,98,238,.12);
+  box-shadow: 0 0 0 1px var(--violet), 0 0 22px rgba(94,81,241,.40);
+  background: rgba(94,81,241,.12);
 }
 
 /* Champ de saisie */
 .input {
-  width: 100%; padding: 14px 16px; border-radius: var(--r-sm); color: #fff;
-  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.10);
+  width: 100%; padding: 14px 16px; border-radius: var(--r-field); color: var(--text);
+  background: var(--glass-fill); border: 1px solid var(--glass-border);
 }
 .input::placeholder { color: var(--text-muted); }
 .input:focus {
   outline: none; border-color: var(--violet);
-  box-shadow: 0 0 0 3px rgba(110,98,238,.25);
+  box-shadow: 0 0 0 3px rgba(94,81,241,.25);
 }
 
-/* Tuile d'icône (liseré lumineux) */
-.icon-tile {
-  border-radius: 28px; background: var(--bg-surface);
-  box-shadow: inset 0 0 0 1px rgba(139,130,242,.18), 0 0 30px rgba(110,98,238,.18);
+/* Typo utilitaires */
+.h1       { font: 500 64px/1.2 var(--font-display); letter-spacing: -1.28px; color: var(--text); }
+.subtitle { font: 400 24px/1.5 var(--font-slab); letter-spacing: -0.72px; color: var(--text); }
+.card-title { font: 500 32px/1.5 var(--font-display); letter-spacing: -0.352px; color: var(--text-card); }
+.body     { font: 500 20px/1.5 var(--font-display); letter-spacing: -0.22px; color: var(--text-card); }
+.brand    { font-family: var(--font-brand); } /* à appliquer au mot "Frank" inline */
+
+/* Mascotte : halo de glow */
+.frank { position: relative; filter: drop-shadow(0 0 34px rgba(94,81,241,.45)); }
+.frank-glow {
+  position: absolute; inset: -40%; z-index: -1; opacity: .71;
+  background: radial-gradient(circle, rgba(94,81,241,.5), transparent 70%);
+  filter: blur(40px);
 }
 
-/* Accessibilité : version sans animation */
+/* Accessibilité */
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }

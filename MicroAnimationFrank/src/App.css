@@ -1,0 +1,559 @@
+.nav-btn {
+  position: fixed;
+  top: 32px;
+  right: 32px;
+  padding: 0 20px;
+  height: 44px;
+  border-radius: 22px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  color: white;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: background 0.2s ease, transform 0.15s ease;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* ─── Onboarding Frank — accueil + transition « Un clic suffit » ─────────── */
+.ob-root {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Couche Frank — découplée pour « nager » librement d'un écran à l'autre */
+.ob-frank-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.ob-frank {
+  position: relative;
+  width: 26vw;
+  max-width: 360px;
+  flex-shrink: 0;
+  will-change: transform, opacity;
+}
+
+.ob-frank-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 0 34px rgba(94, 81, 241, 0.45));
+}
+
+
+/* Vidéo « Un clic suffit » — fond transparent, positionnée comme l'ancien overlay */
+.ob-frank-skill {
+  --skill-w: 124%;
+  --skill-y: 34%;
+  position: absolute;
+  left: 50%;
+  top: var(--skill-y);
+  width: var(--skill-w);
+  height: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  object-fit: contain;
+  filter: drop-shadow(0 0 30px rgba(94, 81, 241, 0.4));
+}
+
+/* Halo de lumière derrière la mascotte (profondeur + DA océan) */
+.ob-frank-glow {
+  position: absolute;
+  inset: -36%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 46%,
+    rgba(94, 81, 241, 0.55) 0%,
+    rgba(94, 81, 241, 0.14) 52%,
+    transparent 72%);
+  filter: blur(34px);
+  opacity: 0.7;
+  z-index: -1;
+}
+
+/* Écrans superposés (accueil / « Un clic suffit ») */
+.ob-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  pointer-events: none;
+}
+
+.ob-screen .ob-btn,
+.ob-screen .ob-skip {
+  pointer-events: auto;
+}
+
+/* Écran 1 — Accueil : Frank au-dessus, texte dans la moitié basse */
+.ob-screen--welcome {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: center;
+  gap: 16px;
+  padding: 0 40px 15vh;
+}
+
+.ob-screen--welcome .ob-btn {
+  margin-top: 14px;
+}
+
+.ob-title {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 36px;
+  font-weight: 600;
+  color: #f6f6ff;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.ob-title em {
+  font-style: italic;
+  font-weight: 600;
+}
+
+.ob-subtitle {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 18px;
+  color: rgba(246, 246, 255, 0.55);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 460px;
+}
+
+.ob-btn {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 100px;
+  padding: 15px 34px;
+  background:
+    radial-gradient(120% 180% at 90% 10%,
+      rgba(154, 148, 229, 0.34) 0%,
+      rgba(124, 114, 235, 0.30) 25%,
+      rgba(94, 81, 241, 0.28) 50%,
+      rgba(74, 64, 190, 0.20) 75%,
+      rgba(54, 47, 139, 0.18) 100%),
+    rgba(94, 81, 241, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #f6f6ff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  cursor: pointer;
+  will-change: opacity, transform;
+}
+
+/* Éclat de lumière en diagonale (reflet glass) repris du bouton Figma */
+.ob-btn::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: -12px;
+  width: 22px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.48);
+  filter: blur(10px);
+  transform: rotate(31.35deg);
+  pointer-events: none;
+}
+
+/* Reflet glass qui balaie le bouton au survol */
+.ob-btn::after {
+  content: '';
+  position: absolute;
+  top: -25%;
+  left: 0;
+  width: 44px;
+  height: 150%;
+  background: rgba(255, 255, 255, 0.18);
+  filter: blur(11px);
+  transform: translateX(-70px) rotate(28deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ob-btn:hover::after {
+  animation: ob-sheen 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ob-sheen {
+  0%   { opacity: 0; transform: translateX(-70px) rotate(28deg); }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(210px) rotate(28deg); }
+}
+
+/* ─── Écran 2 — « Un clic suffit » ──────────────────────────────────────── */
+.ob-title--lg {
+  font-size: clamp(32px, 4.6vw, 52px);
+}
+
+.ob-skip {
+  position: absolute;
+  top: 32px;
+  left: 32px;
+  border: none;
+  background: none;
+  color: rgba(246, 246, 255, 0.3);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.ob-skip:hover {
+  color: rgba(246, 246, 255, 0.55);
+}
+
+.ob-skill-content {
+  position: absolute;
+  top: 15vh;
+  left: 0;
+  right: 0;
+  padding: 0 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.ob-subtitle--skill {
+  max-width: 520px;
+  color: rgba(246, 246, 255, 0.62);
+}
+
+.ob-nav {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Bouton secondaire (Retour) : contour violet clair, fond transparent */
+.ob-btn--secondary {
+  background: transparent;
+  border-color: rgba(154, 148, 229, 0.7);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.ob-btn--secondary::before {
+  opacity: 0.45;
+}
+
+/* ─── Onboarding background ──────────────────────────────────────────────── */
+.onboarding-bg {
+  position: relative;
+  min-height: 100svh;
+  width: 100%;
+  overflow: hidden;
+  background-color: #0b091b;
+  background-image: radial-gradient(
+    ellipse 277px 198px at 50% 193%,
+    rgba(94, 81, 241, 0.10) 0%,
+    rgba(108, 101, 189, 0.10) 12.1%,
+    rgba(123, 121, 137, 0.10) 24.3%,
+    rgba(90, 86, 134, 0.10) 36.4%,
+    rgba(58, 52, 131, 0.10) 48.6%,
+    rgba(40, 37, 77, 0.10) 74.3%,
+    rgba(31, 29, 49, 0.10) 87.1%,
+    rgba(22, 22, 22, 0.10) 100%
+  );
+  box-shadow:
+    inset 0px 0px 187px rgba(0, 0, 0, 0.25),
+    inset 0px 85px 76px rgba(172, 165, 245, 0.04),
+    inset 0px -85px 76px rgba(172, 165, 245, 0.04);
+}
+
+.onboarding-ellipse {
+  position: absolute;
+  left: -18.6%;
+  bottom: -625px;
+  width: 137.2%;
+  height: 782px;
+  pointer-events: none;
+}
+
+.onboarding-ellipse img {
+  position: absolute;
+  top: -20.05%;
+  left: -7.94%;
+  width: calc(100% + 15.88%);
+  height: calc(100% + 40.1%);
+  max-width: none;
+  display: block;
+}
+
+/* ─── Écran 3 — « Pourquoi Frank ? » ─────────────────────────────────────── */
+.ob-why-head {
+  position: absolute;
+  top: 11vh;
+  left: 6vw;
+  right: 38vw;
+}
+
+.ob-why-head .ob-title,
+.ob-why-head .ob-subtitle {
+  text-align: left;
+}
+
+.ob-why-head .ob-subtitle {
+  margin-top: 14px;
+}
+
+.ob-why-cards {
+  position: absolute;
+  left: 6vw;
+  right: 6vw;
+  bottom: 13vh;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+/* Surface vitrée : le backdrop-filter floute Frank quand il nage derrière */
+.ob-why-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(172, 165, 245, 0.22),
+    0 10px 34px rgba(0, 0, 0, 0.28);
+}
+
+.ob-why-icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  color: #aca5f5;
+}
+
+.ob-why-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ob-why-card h2 {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  color: #f6f6ff;
+}
+
+.ob-why-card p {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(246, 246, 255, 0.5);
+}
+
+/* Remplace le carré gris (placeholder Figma) par une surface vitrée + lueur */
+.ob-why-card-media {
+  margin-top: 8px;
+  height: 124px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    radial-gradient(130% 120% at 25% 0%,
+      rgba(124, 114, 235, 0.28) 0%,
+      rgba(94, 81, 241, 0.1) 55%,
+      transparent 100%),
+    rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 900px) {
+  .ob-why-head { right: 6vw; }
+  .ob-why-cards { grid-template-columns: 1fr; bottom: 8vh; }
+  .ob-why-card-media { height: 80px; }
+}
+
+/* ─── Bulles d'interrogation (transition « Pourquoi Frank ? » → IA) ──────── */
+.ob-bubbles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.ob-bubble {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: radial-gradient(circle at 32% 26%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.08) 42%,
+    rgba(154, 148, 229, 0.12) 100%);
+  box-shadow:
+    inset 0 0 6px rgba(255, 255, 255, 0.35),
+    0 0 12px rgba(124, 114, 235, 0.28);
+}
+
+/* Bulle portant un « ? » — écho au titre « Pourquoi Frank ? » */
+.ob-bubble--q {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(172, 165, 245, 0.65);
+  background: radial-gradient(circle at 32% 26%,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(124, 114, 235, 0.18) 45%,
+    rgba(94, 81, 241, 0.16) 100%);
+  color: #d9d5ff;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  line-height: 1;
+  text-shadow: 0 0 8px rgba(172, 165, 245, 0.8);
+}
+
+/* ─── Écran 4 — « Quelles IA tu utilises ? » ────────────────────────────── */
+.ob-ia-head {
+  position: absolute;
+  top: 11vh;
+  left: 6vw;
+  right: 50vw;
+}
+
+.ob-ia-head .ob-title,
+.ob-ia-head .ob-subtitle {
+  text-align: left;
+}
+
+.ob-ia-head .ob-subtitle {
+  margin-top: 14px;
+}
+
+.ob-ia-grid {
+  position: absolute;
+  top: 50%;
+  right: 6vw;
+  transform: translateY(-50%);
+  width: min(42vw, 540px);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.ob-ai-chip {
+  position: relative;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-radius: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #f6f6ff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ob-ai-chip:hover {
+  border-color: rgba(154, 148, 229, 0.5);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.ob-ai-dot {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: radial-gradient(120% 120% at 30% 25%,
+    rgba(172, 165, 245, 0.9) 0%,
+    rgba(94, 81, 241, 0.7) 45%,
+    rgba(54, 47, 139, 0.6) 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.ob-ai-chip.is-selected {
+  border-color: rgba(124, 114, 235, 0.9);
+  background:
+    radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.22), rgba(94, 81, 241, 0.16)),
+    rgba(94, 81, 241, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(124, 114, 235, 0.5),
+    0 0 18px rgba(94, 81, 241, 0.45);
+}
+
+/* Petit « pop » à la sélection, porté par un anneau (sans toucher au transform GSAP) */
+.ob-ai-chip::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 100px;
+  border: 1px solid rgba(124, 114, 235, 0.7);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ob-ai-chip.is-selected::after {
+  animation: ob-chip-ring 0.45s ease;
+}
+
+@keyframes ob-chip-ring {
+  0%   { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.12); }
+}
+
+@media (max-width: 900px) {
+  .ob-ia-head { right: 6vw; top: 7vh; }
+  .ob-ia-grid {
+    position: static;
+    transform: none;
+    width: auto;
+    margin: 34vh 6vw 0;
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Sources d'animation lourdes — l'asset web utilisé est public/assets/*.webm
+*.mov
+Composition*.json
