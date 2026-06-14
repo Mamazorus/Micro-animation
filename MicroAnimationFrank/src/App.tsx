@@ -7,7 +7,7 @@ import './App.css'
 
 gsap.registerPlugin(MotionPathPlugin)
 
-const STEPS = ['welcome', 'skill', 'why', 'ia', 'specialite'] as const
+const STEPS = ['welcome', 'skill', 'why', 'ia', 'specialite', 'precise'] as const
 type Step = (typeof STEPS)[number]
 
 type FrankState = { x: number; y: number; scale: number; rot: number; opacity: number }
@@ -50,6 +50,9 @@ const FRANK: Record<'intro' | Step, FrankState> = {
   ia:      fs(-0.16, 0,     2.4,  5),
   // Écran spécialité : Frank reste exactement où il était sur l'écran IA.
   specialite: fs(-0.16, 0,  2.4,  5),
+  // Écran « Plus précisément ? » : Frank petit, dans l'espace vide à gauche,
+  // derrière les cartes (z-order). Beaucoup de tags → il s'efface un peu (profondeur).
+  precise: fs(-0.3,  0.12,  0.8, -3),
 }
 
 const AI_OPTIONS = [
@@ -61,6 +64,20 @@ const AI_OPTIONS = [
   { name: 'Mistral', logo: 'mistral' },
   { name: 'Copilot', logo: 'copilot' },
   { name: 'Autre', logo: 'autre' },
+]
+
+/* Écran « Plus précisément ? » — tags multi-select groupés par catégorie.
+   On réutilise le composant .ob-ai-chip (variante --tag) plutôt que le style
+   « texte dégradé » du Figma. Clé de sélection = `${groupe}|${option}`. */
+const PRECISE_GROUPS = [
+  { key: 'style', label: 'Style visuel',
+    options: ['Brutalisme', 'Minimalisme', 'Glassmorphique', 'Skeumorphe'] },
+  { key: 'produit', label: 'Type de produit',
+    options: ['Mobile app', 'Web app', 'Landing page', 'Dashboard', 'Home page', 'E-commerce'] },
+  { key: 'expertise', label: 'Expertise',
+    options: ['Design system', 'Prototypage', 'Wireframing', 'User research', 'Accessibilité'] },
+  { key: 'outils', label: 'Outils',
+    options: ['Figma', 'Framer', 'Sketch', 'Penpot'] },
 ]
 
 /* Bulles d'interrogation « libérées » autour de la tête de Frank sur l'écran IA.
@@ -87,6 +104,11 @@ const TRAIL_EMIT_EVERY = 155   // déplacement : distance (px) entre deux bulles
 const TRAIL_MAX_STEP = 220     // saut/frame au-delà = téléportation → on n'émet pas
 const TRAIL_IDLE_MIN = 1.6     // repos : intervalle min (s) entre deux bulles
 const TRAIL_IDLE_MAX = 3.0     // repos : intervalle max (s) — très clairsemé
+// Taille d'une bulle = fraction de la taille apparente de Frank → petites quand
+// il est loin (petit), plus grosses quand il est proche (gros), bornée en px.
+const TRAIL_SIZE_RATIO_MIN = 0.03
+const TRAIL_SIZE_RATIO_MAX = 0.075
+const TRAIL_SIZE_MIN = 5, TRAIL_SIZE_MAX = 72
 
 const WHY_CARDS = [
   { key: 'feed', Icon: IconSliders, title: 'Feed personnalisé',
@@ -195,6 +217,11 @@ function Onboarding() {
   const spHeadRef = useRef<HTMLDivElement>(null)
   const spGridRef = useRef<HTMLDivElement>(null)
   const spNavRef  = useRef<HTMLDivElement>(null)
+  // Écran 6 — « Plus précisément ? »
+  const prSkipRef   = useRef<HTMLButtonElement>(null)
+  const prHeadRef   = useRef<HTMLDivElement>(null)
+  const prGroupsRef = useRef<HTMLDivElement>(null)
+  const prNavRef    = useRef<HTMLDivElement>(null)
   // Bulles d'interrogation (transition « Pourquoi Frank ? » → IA)
   const bubblesRef = useRef<HTMLDivElement>(null)
   // Traînée de bulles laissée par Frank pendant ses déplacements
@@ -208,10 +235,11 @@ function Onboarding() {
   // Deep links de prévisualisation : ?ob=skill | ?ob=why (état figé), ?frz=0..1 (scrub)
   const [step, setStep] = useState<Step>(() => {
     const ob = new URLSearchParams(window.location.search).get('ob')
-    return ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+    return ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
   })
   const [selectedAis, setSelectedAis] = useState<Set<string>>(() => new Set())
   const [selectedSpecs, setSelectedSpecs] = useState<Set<Spec>>(() => new Set())
+  const [selectedPrecise, setSelectedPrecise] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     const frank = frankRef.current
@@ -227,6 +255,8 @@ function Onboarding() {
     const iaChips    = iaGridRef.current ? Array.from(iaGridRef.current.children) : []
     const spEls      = [spSkipRef.current, spNavRef.current]
     const spCards    = spGridRef.current ? Array.from(spGridRef.current.children) : []
+    const prEls      = [prSkipRef.current, prNavRef.current]
+    const prGroups   = prGroupsRef.current ? Array.from(prGroupsRef.current.children) : []
 
     const params = new URLSearchParams(window.location.search)
     const ob  = params.get('ob')
@@ -235,7 +265,7 @@ function Onboarding() {
     reduceRef.current = reduce
 
     const startStep: Step =
-      ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+      ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
     const startIdx = STEPS.indexOf(startStep)
     idxRef.current = startIdx
 
@@ -249,6 +279,8 @@ function Onboarding() {
     gsap.set(iaChips, { autoAlpha: 0, y: 20, scale: 0.9 })
     gsap.set([spHeadRef.current, ...spEls], { autoAlpha: 0, y: 24 })
     gsap.set(spCards, { autoAlpha: 0, y: 20, scale: 0.9 })
+    gsap.set([prHeadRef.current, ...prEls], { autoAlpha: 0, y: 24 })
+    gsap.set(prGroups, { autoAlpha: 0, y: 24 })
 
     const applyMascotKind = (s: keyof typeof FRANK) => {
       const useSkill = s === 'skill'
@@ -438,9 +470,44 @@ function Onboarding() {
       return t
     }
 
+    // Segment 4 — « Spécialité » → « Plus précisément ? »
+    // Frank rapetisse (gros plan → petit) et nage vers l'espace vide à gauche,
+    // derrière les cartes (z-order), pendant que les tags entrent à droite.
+    const buildSpecialitePrecise = () => {
+      const h = window.innerHeight, w = window.innerWidth
+      const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
+
+      // Sortie de l'écran spécialité
+      t.to([spNavRef.current, spSkipRef.current],
+        { autoAlpha: 0, y: 16, duration: 0.32, stagger: 0.06, ease: 'power2.in' }, 0)
+      t.to(spHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
+      t.to(spCards, { autoAlpha: 0, y: 24, scale: 0.9, duration: 0.4, stagger: 0.04, ease: 'power2.in' }, 0)
+
+      // Frank rapetisse et nage du gros plan vers la gauche-centre (reste visible,
+      // derrière les cartes) ; profondeur → il s'estompe un peu en s'éloignant.
+      const prLean = makeLean(frank, FRANK.specialite.rot, FRANK.precise.rot, true)
+      t.to(frank, { duration: 1.5, ease: 'sine.inOut',
+        scale: FRANK.precise.scale, rotation: FRANK.precise.rot,
+        motionPath: { path: [
+          { x: FRANK.specialite.x * w, y: FRANK.specialite.y * h },
+          { x: -0.23 * w,              y: 0.11 * h },   // point doux, sur le trajet (pas de crochet)
+          { x: FRANK.precise.x * w,    y: FRANK.precise.y * h },
+        ], curviness: 1.6, autoRotate: false },
+        onStart: prLean.start, onUpdate: prLean.update }, 0.15)
+      t.to(frank, { opacity: FRANK.precise.opacity, duration: 0.9, ease: 'power1.out' }, 0.4)
+
+      // Entrée de « Plus précisément ? » : titre, puis les groupes en stagger
+      t.to(prHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.7)
+      t.to(prGroups, { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.12, ease: 'power2.out' }, 0.82)
+      t.to([prSkipRef.current, prNavRef.current],
+        { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 1.0)
+
+      return t
+    }
+
     const buildSegments = () => {
       segsRef.current.forEach(t => t.kill())
-      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite()]
+      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite(), buildSpecialitePrecise()]
     }
 
     let intro: gsap.core.Timeline | undefined
@@ -459,7 +526,8 @@ function Onboarding() {
       else if (startStep === 'skill') gsap.set(skillEls, { autoAlpha: 1, y: 0 })
       else if (startStep === 'why') gsap.set([...whyEls, ...whyCards], { autoAlpha: 1, y: 0 })
       else if (startStep === 'ia') gsap.set([iaHeadRef.current, ...iaEls, ...iaChips], { autoAlpha: 1, y: 0, scale: 1 })
-      else gsap.set([spHeadRef.current, ...spEls, ...spCards], { autoAlpha: 1, y: 0, scale: 1 })
+      else if (startStep === 'specialite') gsap.set([spHeadRef.current, ...spEls, ...spCards], { autoAlpha: 1, y: 0, scale: 1 })
+      else gsap.set([prHeadRef.current, ...prEls, ...prGroups], { autoAlpha: 1, y: 0 })
       buildSegments()
       if (frz !== null) {
         const seg = segsRef.current[Math.min(startIdx, segsRef.current.length - 1)]
@@ -513,11 +581,13 @@ function Onboarding() {
       let idleTarget = gsap.utils.random(TRAIL_IDLE_MIN, TRAIL_IDLE_MAX) * 1000
       let wasEligible = false                                  // déjà posé sur un écran ?
 
-      const emit = (cx: number, cy: number, depth: number) => {
+      const emit = (cx: number, cy: number, depth: number, appSize: number) => {
         const b = pool[slot]
         slot = (slot + 1) % pool.length
         gsap.killTweensOf(b)                       // recycle la bulle la plus ancienne
-        const size  = gsap.utils.random(9, 28)
+        // Taille proportionnelle à la taille apparente de Frank (cf. constantes).
+        const size  = gsap.utils.clamp(TRAIL_SIZE_MIN, TRAIL_SIZE_MAX,
+          appSize * gsap.utils.random(TRAIL_SIZE_RATIO_MIN, TRAIL_SIZE_RATIO_MAX))
         const rise  = gsap.utils.random(34, 78)    // montée (px) — les bulles remontent
         const drift = gsap.utils.random(-22, 22)   // dérive latérale
         // Opacité au pic liée à la profondeur de Frank (son opacité courante) :
@@ -537,22 +607,21 @@ function Onboarding() {
       // sur son corps. L'écart suit sa taille apparente (largeur CSS × --ss ×
       // scale courant, même formule que la couche bulles « ? »), puis on clampe
       // à l'écran pour ne pas émettre dans le vide hors cadre.
-      const idleSpawn = (cx: number, cy: number, scale: number) => {
+      const idleSpawn = (cx: number, cy: number, appSize: number) => {
         const w = window.innerWidth, h = window.innerHeight
-        const appSize = FRANK_SS * Math.min(0.26 * w, 360) * scale
         let sx = cx, sy = cy
         switch (gsap.utils.random(['up', 'left', 'right'])) {
           case 'left':
-            sx = cx - gsap.utils.random(0.5, 0.72) * appSize
-            sy = cy + gsap.utils.random(-0.32, 0.18) * appSize
+            sx = cx - gsap.utils.random(0.38, 0.52) * appSize
+            sy = cy + gsap.utils.random(-0.26, 0.14) * appSize
             break
           case 'right':
-            sx = cx + gsap.utils.random(0.5, 0.72) * appSize
-            sy = cy + gsap.utils.random(-0.32, 0.18) * appSize
+            sx = cx + gsap.utils.random(0.38, 0.52) * appSize
+            sy = cy + gsap.utils.random(-0.26, 0.14) * appSize
             break
           default: // au-dessus
-            sx = cx + gsap.utils.random(-0.3, 0.3) * appSize
-            sy = cy - gsap.utils.random(0.5, 0.78) * appSize
+            sx = cx + gsap.utils.random(-0.26, 0.26) * appSize
+            sy = cy - gsap.utils.random(0.4, 0.56) * appSize
         }
         return { x: gsap.utils.clamp(24, w - 24, sx), y: gsap.utils.clamp(24, h - 24, sy) }
       }
@@ -565,6 +634,13 @@ function Onboarding() {
         const cx = window.innerWidth / 2 + x
         const cy = window.innerHeight / 2 + y
         const depth = gsap.utils.clamp(0, 1, op)
+        const appSize = FRANK_SS * Math.min(0.26 * window.innerWidth, 360) * scale
+
+        // Pas de bulles tant que c'est la mascotte « Un clic suffit » (vidéo
+        // composition-2) qui est à l'écran : elle arrive et se pose sans traînée.
+        const skillActive = !!frankSkillRef.current &&
+          parseFloat(String(gsap.getProperty(frankSkillRef.current, 'opacity'))) > 0.5
+        if (skillActive) { lx = null; acc = 0; idleAcc = 0; wasEligible = false; return }
 
         if (animatingRef.current) {
           // Déplacement : une bulle tous les TRAIL_EMIT_EVERY px parcourus.
@@ -578,7 +654,7 @@ function Onboarding() {
           acc += d
           while (acc >= TRAIL_EMIT_EVERY) {
             acc -= TRAIL_EMIT_EVERY
-            emit(cx, cy, depth)
+            emit(cx, cy, depth, appSize)
           }
         } else {
           // Repos : émission temporelle clairsemée tant que Frank est posé sur un
@@ -595,8 +671,8 @@ function Onboarding() {
           if (idleAcc >= idleTarget) {
             idleAcc = 0
             idleTarget = gsap.utils.random(TRAIL_IDLE_MIN, TRAIL_IDLE_MAX) * 1000
-            const s = idleSpawn(cx, cy, scale)   // sur un côté ou au-dessus, pas sur le corps
-            emit(s.x, s.y, depth)
+            const s = idleSpawn(cx, cy, appSize)  // sur un côté ou au-dessus, pas sur le corps
+            emit(s.x, s.y, depth, appSize)
           }
         }
       }
@@ -718,6 +794,15 @@ function Onboarding() {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      return next
+    })
+
+  // « Plus précisément ? » = tags multi-select groupés ; clé = `${groupe}|${option}`.
+  const togglePrecise = (key: string) =>
+    setSelectedPrecise(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       return next
     })
 
@@ -870,6 +955,43 @@ function Onboarding() {
           })}
         </div>
         <div ref={spNavRef} className="ob-nav">
+          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
+          <button className="ob-btn" onClick={goNext}>Suivant</button>
+        </div>
+      </div>
+
+      {/* Écran 6 — Plus précisément ? (tags multi-select groupés ; chips = .ob-ai-chip--tag) */}
+      <div className="ob-screen ob-screen--ia">
+        <button ref={prSkipRef} className="ob-skip">Passer</button>
+        <div ref={prHeadRef} className="ob-ia-head">
+          <h1 className="ob-title ob-title--lg">Plus précisément&nbsp;?</h1>
+          <p className="ob-subtitle">Choix multiple. On affinera tes Skills.</p>
+        </div>
+        <div ref={prGroupsRef} className="ob-pr-groups">
+          {PRECISE_GROUPS.map(({ key, label, options }) => (
+            <div key={key} className="ob-pr-group">
+              <p className="ob-pr-label">{label}</p>
+              <div className="ob-pr-row">
+                {options.map(opt => {
+                  const tagKey = `${key}|${opt}`
+                  const active = selectedPrecise.has(tagKey)
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      className={`ob-ai-chip ob-ai-chip--tag${active ? ' is-selected' : ''}`}
+                      aria-pressed={active}
+                      onClick={() => togglePrecise(tagKey)}
+                    >
+                      <span className="ob-ai-name">{opt}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div ref={prNavRef} className="ob-nav">
           <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
           <button className="ob-btn" onClick={goNext}>Suivant</button>
         </div>
