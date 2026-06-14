@@ -7,7 +7,7 @@ import './App.css'
 
 gsap.registerPlugin(MotionPathPlugin)
 
-const STEPS = ['welcome', 'skill', 'why', 'ia', 'specialite', 'precise'] as const
+const STEPS = ['welcome', 'skill', 'why', 'ia', 'specialite', 'precise', 'present', 'password'] as const
 type Step = (typeof STEPS)[number]
 
 type FrankState = { x: number; y: number; scale: number; rot: number; opacity: number }
@@ -20,7 +20,13 @@ type FrankState = { x: number; y: number; scale: number; rot: number; opacity: n
    FRANK_SS. Rendu identique, mais la texture est rastérisée FRANK_SS× plus fine.
    FRANK_SS=4 ⇒ étirement résiduel 11,2/4=2,8× au lieu de 11,2× (au-delà de la limite du
    net avec la source actuelle ; OK car la V2 de la vidéo sera en 4K — sinon monter FRANK_SS)
-   sans suréchantillonner les filtres de flou au point de saccader. Ajustable. */
+   sans suréchantillonner les filtres de flou au point de saccader. Ajustable.
+   PLAFOND : la couche scalée (= baseCss × FRANK_SS × scale) + le drop-shadow sature le
+   compositing GPU si elle devient trop grande → TOUT bugue. Parade en place : la lueur
+   (drop-shadow + glow) est COUPÉE pendant le gros plan d'intro (classe is-intro, cf.
+   App.css), invisible à ce scale de toute façon ; ça relève le plafond. FRANK.intro est
+   à un scale visuel ~16 ; éviter de dépasser ~18 (au-delà, la taille brute de couche
+   redevient limitante, même sans lueur). */
 const FRANK_SS = 4
 
 /* Profondeur de champ : l'opacité « de repos » de Frank découle de sa taille
@@ -43,16 +49,22 @@ const fs = (x: number, y: number, visualScale: number, rot: number): FrankState 
   ({ x, y, scale: visualScale / FRANK_SS, rot, opacity: depthOpacity(visualScale) })
 
 const FRANK: Record<'intro' | Step, FrankState> = {
-  intro:   fs(0,     0,     11.6, 0),
+  intro:   fs(0,     0,     16,   0),   // gros plan d'ouverture ; lueur coupée pendant l'intro (is-intro) → plafond relevé, mais éviter > ~18
   welcome: fs(0,    -0.16,  1,    0),
   skill:   fs(0,     0.41,  2.3,  0),
   why:     fs(0.34, -0.32,  0.62, -4),
   ia:      fs(-0.16, 0,     2.4,  5),
   // Écran spécialité : Frank reste exactement où il était sur l'écran IA.
   specialite: fs(-0.16, 0,  2.4,  5),
-  // Écran « Plus précisément ? » : Frank petit, dans l'espace vide à gauche,
-  // derrière les cartes (z-order). Beaucoup de tags → il s'efface un peu (profondeur).
-  precise: fs(-0.3,  0.12,  0.8, -3),
+  // Écran « Plus précisément ? » : Frank assez présent dans l'espace à gauche
+  // (l'écran paraissait vide), derrière les cartes (z-order).
+  precise: fs(-0.3,  0.12,  1.45, -3),
+  // Écran « On se présente » : grande moitié gauche vide → Frank vient au premier
+  // plan, grand et droit (face caméra) pour « se présenter ».
+  present: fs(-0.25, 0.06,  1.65, 0),
+  // Écran « Créer ton mot de passe » : même type d'écran que « On se présente »,
+  // Frank reste dans la moitié gauche (dérive minime).
+  password: fs(-0.27, 0.07,  1.55, -2),
 }
 
 const AI_OPTIONS = [
@@ -222,6 +234,14 @@ function Onboarding() {
   const prHeadRef   = useRef<HTMLDivElement>(null)
   const prGroupsRef = useRef<HTMLDivElement>(null)
   const prNavRef    = useRef<HTMLDivElement>(null)
+  // Écran 7 — « On se présente » (formulaire)
+  const presHeadRef = useRef<HTMLDivElement>(null)
+  const presFormRef = useRef<HTMLFormElement>(null)
+  const presBackRef = useRef<HTMLDivElement>(null)
+  // Écran 8 — « Créer ton mot de passe »
+  const pwdHeadRef = useRef<HTMLDivElement>(null)
+  const pwdFormRef = useRef<HTMLFormElement>(null)
+  const pwdBackRef = useRef<HTMLDivElement>(null)
   // Bulles d'interrogation (transition « Pourquoi Frank ? » → IA)
   const bubblesRef = useRef<HTMLDivElement>(null)
   // Traînée de bulles laissée par Frank pendant ses déplacements
@@ -235,11 +255,30 @@ function Onboarding() {
   // Deep links de prévisualisation : ?ob=skill | ?ob=why (état figé), ?frz=0..1 (scrub)
   const [step, setStep] = useState<Step>(() => {
     const ob = new URLSearchParams(window.location.search).get('ob')
-    return ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+    return ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
   })
   const [selectedAis, setSelectedAis] = useState<Set<string>>(() => new Set())
   const [selectedSpecs, setSelectedSpecs] = useState<Set<Spec>>(() => new Set())
   const [selectedPrecise, setSelectedPrecise] = useState<Set<string>>(() => new Set())
+  // Formulaire « On se présente » (contrôlé)
+  const [presName, setPresName] = useState('')
+  const [presEmail, setPresEmail] = useState('')
+  const [presCgu, setPresCgu] = useState(false)
+  // Mot de passe « Créer ton mot de passe » (contrôlé)
+  const [presPwd, setPresPwd] = useState('')
+  const [presPwd2, setPresPwd2] = useState('')
+
+  // Validations dérivées (recalculées à chaque rendu).
+  // Accès à « Créer ton mot de passe » : les 2 champs remplis + CGU cochées.
+  const presValid = presName.trim() !== '' && /^\S+@\S+\.\S+$/.test(presEmail) && presCgu
+  const pwdReqs = {
+    len: presPwd.length >= 8,
+    upper: /[A-Z]/.test(presPwd),
+    special: /[\d\W]/.test(presPwd),
+  }
+  const pwdScore = [pwdReqs.len, pwdReqs.upper, pwdReqs.special].filter(Boolean).length
+  const pwdStrength = pwdScore <= 1 ? 'Faible' : pwdScore === 2 ? 'Moyen' : 'Fort'
+  const pwdValid = pwdScore === 3 && presPwd !== '' && presPwd === presPwd2
 
   useEffect(() => {
     const frank = frankRef.current
@@ -256,7 +295,10 @@ function Onboarding() {
     const spEls      = [spSkipRef.current, spNavRef.current]
     const spCards    = spGridRef.current ? Array.from(spGridRef.current.children) : []
     const prEls      = [prSkipRef.current, prNavRef.current]
-    const prGroups   = prGroupsRef.current ? Array.from(prGroupsRef.current.children) : []
+    const prLabels   = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-pr-label')) : []
+    const prChips    = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-ai-chip')) : []
+    const presFormEls = presFormRef.current ? Array.from(presFormRef.current.children) : []
+    const pwdFormEls = pwdFormRef.current ? Array.from(pwdFormRef.current.children) : []
 
     const params = new URLSearchParams(window.location.search)
     const ob  = params.get('ob')
@@ -265,7 +307,7 @@ function Onboarding() {
     reduceRef.current = reduce
 
     const startStep: Step =
-      ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+      ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
     const startIdx = STEPS.indexOf(startStep)
     idxRef.current = startIdx
 
@@ -280,7 +322,12 @@ function Onboarding() {
     gsap.set([spHeadRef.current, ...spEls], { autoAlpha: 0, y: 24 })
     gsap.set(spCards, { autoAlpha: 0, y: 20, scale: 0.9 })
     gsap.set([prHeadRef.current, ...prEls], { autoAlpha: 0, y: 24 })
-    gsap.set(prGroups, { autoAlpha: 0, y: 24 })
+    gsap.set(prLabels, { autoAlpha: 0, y: 16 })
+    gsap.set(prChips, { autoAlpha: 0, y: 20, scale: 0.9 })
+    gsap.set([presHeadRef.current, presBackRef.current], { autoAlpha: 0, y: 24 })
+    gsap.set(presFormEls, { autoAlpha: 0, y: 20 })
+    gsap.set([pwdHeadRef.current, pwdBackRef.current], { autoAlpha: 0, y: 24 })
+    gsap.set(pwdFormEls, { autoAlpha: 0, y: 20 })
 
     const applyMascotKind = (s: keyof typeof FRANK) => {
       const useSkill = s === 'skill'
@@ -498,16 +545,93 @@ function Onboarding() {
 
       // Entrée de « Plus précisément ? » : titre, puis les groupes en stagger
       t.to(prHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.7)
-      t.to(prGroups, { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.12, ease: 'power2.out' }, 0.82)
+      // Cascade GLOBALE continue des cases (une à une), et CHAQUE label apparaît
+      // juste avant SES propres cases (sync par catégorie) → plus de titre
+      // « Expertise »/« Outils » qui arrive en avance sur ses chips.
+      const prGroupEls = prGroupsRef.current ? Array.from(prGroupsRef.current.children) : []
+      const CHIP_AT = 0.82, CHIP_STEP = 0.04
+      let chipIdx = 0
+      prGroupEls.forEach(group => {
+        const label = group.querySelector('.ob-pr-label')
+        const chips = Array.from(group.querySelectorAll('.ob-ai-chip'))
+        const groupStart = CHIP_AT + chipIdx * CHIP_STEP
+        if (label) t.to(label, { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out' }, groupStart - 0.06)
+        t.to(chips, { autoAlpha: 1, y: 0, scale: 1, duration: 0.42, stagger: CHIP_STEP, ease: 'back.out(1.4)' }, groupStart)
+        chipIdx += chips.length
+      })
       t.to([prSkipRef.current, prNavRef.current],
         { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 1.0)
 
       return t
     }
 
+    // Segment 5 — « Plus précisément ? » → « On se présente »
+    // Frank dérive doucement vers le premier plan gauche (un peu plus grand, droit)
+    // pendant que le formulaire entre à droite. Mouvement doux (sine.inOut).
+    const buildPrecisePresent = () => {
+      const h = window.innerHeight, w = window.innerWidth
+      const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
+
+      // Sortie de « Plus précisément ? »
+      t.to([prNavRef.current, prSkipRef.current],
+        { autoAlpha: 0, y: 16, duration: 0.3, stagger: 0.06, ease: 'power2.in' }, 0)
+      t.to(prHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
+      t.to([...prLabels, ...prChips], { autoAlpha: 0, y: 16, duration: 0.34, stagger: 0.015, ease: 'power2.in' }, 0)
+
+      // Frank avance au premier plan gauche (plus grand, droit) — dérive douce
+      const presLean = makeLean(frank, FRANK.precise.rot, FRANK.present.rot, true)
+      t.to(frank, { duration: 1.2, ease: 'sine.inOut',
+        scale: FRANK.present.scale, rotation: FRANK.present.rot,
+        motionPath: { path: [
+          { x: FRANK.precise.x * w,  y: FRANK.precise.y * h },
+          { x: -0.30 * w,            y: 0.02 * h },
+          { x: FRANK.present.x * w,  y: FRANK.present.y * h },
+        ], curviness: 1.5, autoRotate: false },
+        onStart: presLean.start, onUpdate: presLean.update }, 0.1)
+      t.to(frank, { opacity: FRANK.present.opacity, duration: 0.8, ease: 'power1.out' }, 0.3)
+
+      // Entrée de « On se présente » : titre, formulaire (éléments un à un), puis Retour
+      t.to(presHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.7)
+      t.to(presFormEls, { autoAlpha: 1, y: 0, duration: 0.45, stagger: 0.1, ease: 'power2.out' }, 0.82)
+      t.to(presBackRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.1)
+
+      return t
+    }
+
+    // Segment 6 — « On se présente » → « Créer ton mot de passe »
+    // Même type d'écran : Frank reste dans la moitié gauche (dérive minime),
+    // le formulaire mot de passe entre à droite.
+    const buildPresentPassword = () => {
+      const h = window.innerHeight, w = window.innerWidth
+      const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
+
+      // Sortie de « On se présente »
+      t.to(presBackRef.current, { autoAlpha: 0, y: 16, duration: 0.3, ease: 'power2.in' }, 0)
+      t.to(presHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
+      t.to(presFormEls, { autoAlpha: 0, y: 16, duration: 0.36, stagger: 0.05, ease: 'power2.in' }, 0)
+
+      // Frank dérive doucement vers sa pose « password » (reste à gauche)
+      const pwdLean = makeLean(frank, FRANK.present.rot, FRANK.password.rot, true)
+      t.to(frank, { duration: 1.1, ease: 'sine.inOut',
+        scale: FRANK.password.scale, rotation: FRANK.password.rot,
+        motionPath: { path: [
+          { x: FRANK.present.x * w,  y: FRANK.present.y * h },
+          { x: FRANK.password.x * w, y: FRANK.password.y * h },
+        ], curviness: 1, autoRotate: false },
+        onStart: pwdLean.start, onUpdate: pwdLean.update }, 0.1)
+      t.to(frank, { opacity: FRANK.password.opacity, duration: 0.7, ease: 'power1.out' }, 0.3)
+
+      // Entrée de « Créer ton mot de passe »
+      t.to(pwdHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.7)
+      t.to(pwdFormEls, { autoAlpha: 1, y: 0, duration: 0.45, stagger: 0.1, ease: 'power2.out' }, 0.82)
+      t.to(pwdBackRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.1)
+
+      return t
+    }
+
     const buildSegments = () => {
       segsRef.current.forEach(t => t.kill())
-      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite(), buildSpecialitePrecise()]
+      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite(), buildSpecialitePrecise(), buildPrecisePresent(), buildPresentPassword()]
     }
 
     let intro: gsap.core.Timeline | undefined
@@ -527,7 +651,9 @@ function Onboarding() {
       else if (startStep === 'why') gsap.set([...whyEls, ...whyCards], { autoAlpha: 1, y: 0 })
       else if (startStep === 'ia') gsap.set([iaHeadRef.current, ...iaEls, ...iaChips], { autoAlpha: 1, y: 0, scale: 1 })
       else if (startStep === 'specialite') gsap.set([spHeadRef.current, ...spEls, ...spCards], { autoAlpha: 1, y: 0, scale: 1 })
-      else gsap.set([prHeadRef.current, ...prEls, ...prGroups], { autoAlpha: 1, y: 0 })
+      else if (startStep === 'precise') gsap.set([prHeadRef.current, ...prEls, ...prLabels, ...prChips], { autoAlpha: 1, y: 0, scale: 1 })
+      else if (startStep === 'present') gsap.set([presHeadRef.current, presBackRef.current, ...presFormEls], { autoAlpha: 1, y: 0 })
+      else gsap.set([pwdHeadRef.current, pwdBackRef.current, ...pwdFormEls], { autoAlpha: 1, y: 0 })
       buildSegments()
       if (frz !== null) {
         const seg = segsRef.current[Math.min(startIdx, segsRef.current.length - 1)]
@@ -548,6 +674,9 @@ function Onboarding() {
         gsap.set(welcomeEls, { autoAlpha: 1, y: 0 })
         gsap.set(bgDecoRef.current, { autoAlpha: 1 })
       } else {
+        // Lueur coupée pendant le gros plan (hors-champ à ce scale, mais lourde au GPU) ;
+        // rétablie en cours de dézoom. Évite la saturation GPU qui faisait tout buguer.
+        frank?.classList.add('is-intro')
         intro.to(frank, {
           x: 0, y: FRANK.welcome.y * window.innerHeight,
           scale: FRANK.welcome.scale, rotation: FRANK.welcome.rot, opacity: FRANK.welcome.opacity,
@@ -559,6 +688,8 @@ function Onboarding() {
         }, '-=0.4')
         // Le flottement éclot pile pendant le dézoom (gros plan → Frank petit).
         if (float) intro.to(float.state, { amp: 1, duration: 1.1, ease: 'power1.inOut' }, 0)
+        // Lueur rétablie une fois Frank assez dézoomé (~0,4 s : scale déjà petit → coût GPU négligeable).
+        intro.add(() => frank?.classList.remove('is-intro'), 0.4)
       }
       buildSegments()
     }
@@ -661,6 +792,10 @@ function Onboarding() {
           // écran (scale < 0.9 exclut le gros plan d'intro) et visible — inclut
           // l'accueil « Salut, moi c'est Frank ».
           lx = null; acc = 0
+          // Sur « Quelles IA ? » et « Quelle spécialité ? », ce sont les bulles
+          // « ? » qui animent Frank au repos → pas de traînée idle ici (doublon).
+          const cur = STEPS[idxRef.current]
+          if (cur === 'ia' || cur === 'specialite') { idleAcc = 0; wasEligible = false; return }
           if (op < 0.4 || scale >= 0.9) { idleAcc = 0; wasEligible = false; return }
           if (!wasEligible) {                  // fraîchement posé sur l'écran → 1re bulle rapide
             wasEligible = true
@@ -682,6 +817,7 @@ function Onboarding() {
     // Recalage si la fenêtre change (les chemins sont en px) : on reconstruit
     // et on cale chaque segment sur l'étape courante.
     const onResize = () => {
+      frank?.classList.remove('is-intro')   // filet : si on resize pendant le gros plan, la lueur n'y reste pas coincée
       if (animatingRef.current) return
       const i = idxRef.current
       buildSegments()
@@ -713,15 +849,17 @@ function Onboarding() {
     }
   }, [step])
 
-  // Bulles d'interrogation : Frank en gros plan « réfléchit » en continu sur
-  // l'écran IA. La boucle tourne tant qu'on reste sur ce slide et s'arrête au
-  // changement d'écran (cleanup). Démarrage différé le temps qu'il arrive.
+  // Bulles d'interrogation : Frank en gros plan « réfléchit » en continu sur les
+  // écrans « Quelles IA ? » et « Quelle spécialité ? » (mêmes coordonnées). La
+  // boucle tourne tant qu'on reste sur ce slide et s'arrête au changement d'écran
+  // (cleanup). Démarrage différé le temps qu'il arrive.
   useEffect(() => {
     const layer = bubblesRef.current
-    if (step !== 'ia' || reduceRef.current || !layer) return
+    if ((step !== 'ia' && step !== 'specialite') || reduceRef.current || !layer) return
 
     const bubbles = Array.from(layer.children)
-    const seg = segsRef.current[STEPS.indexOf('ia') - 1]
+    const fst = FRANK[step]                              // ia et specialite : même position
+    const seg = segsRef.current[STEPS.indexOf(step) - 1]
     const startDelay = animatingRef.current && seg ? seg.duration() * 1000 : 0
     const loops: gsap.core.Timeline[] = []
     let cancelled = false
@@ -730,9 +868,9 @@ function Onboarding() {
       if (cancelled) return
       const h = window.innerHeight, w = window.innerWidth
       // base CSS réelle = FRANK_SS × min(26vw, 360px) ; × scale (déjà /FRANK_SS) ⇒ hauteur réelle inchangée.
-      const frankH = FRANK_SS * Math.min(0.26 * w, 360) * FRANK.ia.scale
+      const frankH = FRANK_SS * Math.min(0.26 * w, 360) * fst.scale
       // Origine = sur la tête de Frank (recentrée verticalement)
-      gsap.set(layer, { x: w / 2 + FRANK.ia.x * w, y: h / 2 + FRANK.ia.y * h - frankH * 0.10 })
+      gsap.set(layer, { x: w / 2 + fst.x * w, y: h / 2 + fst.y * h - frankH * 0.10 })
       gsap.set(bubbles, { xPercent: -50, yPercent: -50 })
       bubbles.forEach((b, i) => {
         const cfg = QUESTION_BUBBLES[i % QUESTION_BUBBLES.length]
@@ -994,6 +1132,68 @@ function Onboarding() {
         <div ref={prNavRef} className="ob-nav">
           <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
           <button className="ob-btn" onClick={goNext}>Suivant</button>
+        </div>
+      </div>
+
+      {/* Écran 7 — On se présente (formulaire) */}
+      <div className="ob-screen ob-screen--ia">
+        <div ref={presHeadRef} className="ob-ia-head">
+          <h1 className="ob-title ob-title--lg">On se présente.</h1>
+          <p className="ob-subtitle">Deux infos rapides.</p>
+        </div>
+        <form ref={presFormRef} className="ob-pres-form" onSubmit={e => { e.preventDefault(); if (presValid) goNext() }}>
+          <div className="ob-field">
+            <label className="ob-pr-label" htmlFor="ob-prenom">Prénom</label>
+            <input id="ob-prenom" className="ob-input" type="text" autoComplete="given-name"
+              placeholder="Ex : Annie" value={presName} onChange={e => setPresName(e.target.value)} />
+          </div>
+          <div className="ob-field">
+            <label className="ob-pr-label" htmlFor="ob-email">Email</label>
+            <input id="ob-email" className="ob-input" type="email" autoComplete="email"
+              placeholder="Ex : annie.leroy@email.fr" value={presEmail} onChange={e => setPresEmail(e.target.value)} />
+          </div>
+          <label className="ob-check">
+            <input type="checkbox" checked={presCgu} onChange={e => setPresCgu(e.target.checked)} />
+            <span className="ob-check-box" aria-hidden="true" />
+            <span className="ob-check-label">J'accepte les CGU et la politique de confidentialité.</span>
+          </label>
+          <button type="submit" className="ob-btn ob-pres-submit" disabled={!presValid}>Enregistrer</button>
+        </form>
+        <div ref={presBackRef} className="ob-pres-back">
+          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
+        </div>
+      </div>
+
+      {/* Écran 8 — Créer ton mot de passe */}
+      <div className="ob-screen ob-screen--ia">
+        <div ref={pwdHeadRef} className="ob-ia-head">
+          <h1 className="ob-title ob-title--lg">Créer ton<br />mot de passe</h1>
+          <p className="ob-subtitle">Choisis un mot de passe solide.</p>
+        </div>
+        <form ref={pwdFormRef} className="ob-pres-form" onSubmit={e => e.preventDefault()}>
+          <div className="ob-field">
+            <label className="ob-pr-label" htmlFor="ob-pwd">Mot de passe</label>
+            <input id="ob-pwd" className="ob-input" type="password" autoComplete="new-password"
+              value={presPwd} onChange={e => setPresPwd(e.target.value)} />
+            <div className="ob-pwd-meter" aria-hidden="true">
+              <span className="ob-pwd-bar" data-score={presPwd ? pwdScore : 0} />
+              <span className="ob-pwd-strength">{presPwd ? pwdStrength : ''}</span>
+            </div>
+            <ul className="ob-pwd-reqs">
+              <li className={pwdReqs.len ? 'is-ok' : ''}>8 caractères min</li>
+              <li className={pwdReqs.upper ? 'is-ok' : ''}>1 majuscule</li>
+              <li className={pwdReqs.special ? 'is-ok' : ''}>1 chiffre ou symbole</li>
+            </ul>
+          </div>
+          <div className="ob-field">
+            <label className="ob-pr-label" htmlFor="ob-pwd2">Confirmez le mot de passe</label>
+            <input id="ob-pwd2" className="ob-input" type="password" autoComplete="new-password"
+              value={presPwd2} onChange={e => setPresPwd2(e.target.value)} />
+          </div>
+          <button type="submit" className="ob-btn ob-pres-submit" disabled={!pwdValid}>Enregistrer</button>
+        </form>
+        <div ref={pwdBackRef} className="ob-pres-back">
+          <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
         </div>
       </div>
     </div>

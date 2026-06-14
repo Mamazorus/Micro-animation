@@ -115,6 +115,13 @@
   z-index: -1;
 }
 
+/* Gros plan d'intro : Frank emplit l'écran, sa lueur est hors-champ donc invisible.
+   On la coupe (drop-shadow + glow) le temps du gros plan : à ce scale, le drop-shadow
+   recalculé chaque frame sature le compositing GPU et fait tout buguer. Posée/retirée
+   via la classe is-intro sur .ob-frank (cf. App.tsx, timeline d'intro). */
+.ob-frank.is-intro .ob-frank-svg { filter: none; }
+.ob-frank.is-intro .ob-frank-glow { opacity: 0; }
+
 /* Écrans superposés (accueil / « Un clic suffit ») */
 .ob-screen {
   position: absolute;
@@ -707,41 +714,240 @@
    Frank vit dans l'espace vide à gauche, derrière (z-order). */
 .ob-pr-groups {
   position: absolute;
-  top: 16vh;
+  top: 50%;
   right: 5vw;
+  transform: translateY(-50%);
   width: min(50vw, 660px);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 32px;
 }
 
 .ob-pr-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
+/* Label = mini-titre de section (capitales espacées) pour que l'œil découpe
+   nettement les catégories au lieu de lire un « mur » de chips. */
 .ob-pr-label {
   margin: 0;
   font-family: var(--font-ui);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: rgba(246, 246, 255, 0.49);
+  color: rgba(246, 246, 255, 0.6);
 }
 
 .ob-pr-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
 
 /* Variante « tag » du chip : plus compacte, texte centré ; même DA que .ob-ai-chip
    (fond sombre, lueur, transition « mousse », état sélectionné violet). */
 .ob-ai-chip--tag {
-  padding: 12px 18px;
-  font-size: clamp(14px, 1.15vw, 17px);
+  padding: 14px 22px;
+  font-size: clamp(14px, 1.2vw, 18px);
   justify-content: center;
+}
+
+/* ─── Écran « On se présente » — formulaire ───────────────────────────────
+   Titre en haut-gauche (réutilise .ob-ia-head) ; formulaire à droite ; Frank
+   occupe la grande moitié gauche. Les champs reprennent la DA des cartes. */
+.ob-pres-form {
+  position: absolute;
+  top: 50%;
+  right: 5vw;
+  transform: translateY(-50%);
+  width: min(46vw, 600px);
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  /* Le conteneur ne capte PAS les clics : toujours présent au-dessus de la moitié
+     droite, en `auto` il bloquait les chips des autres écrans ET les inputs de
+     l'écran actif (l'autre formulaire passant au-dessus). Seuls les éléments
+     interactifs réactivent pointer-events ci-dessous. */
+  pointer-events: none;
+}
+
+.ob-pres-form .ob-input,
+.ob-pres-form .ob-check { pointer-events: auto; }
+
+.ob-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Champ texte — même fond sombre + lueur que les cartes (.ob-ai-chip). */
+.ob-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 18px 24px;
+  border: none;
+  border-radius: 16px;
+  background: #100e25;
+  color: #f6f6ff;
+  font-family: var(--font-ui);
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  box-shadow:
+    0 4px 17.3px rgba(172, 165, 245, 0.24),
+    inset 0 0 85px rgba(0, 0, 0, 0.22),
+    inset 0 -8px 21.7px rgba(172, 165, 245, 0.1),
+    inset 0 8px 21.7px rgba(172, 165, 245, 0.3);
+  transition: box-shadow 0.25s ease;
+}
+
+.ob-input::placeholder { color: rgba(255, 255, 255, 0.27); }
+
+.ob-input:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 1.5px rgba(124, 114, 235, 0.8),
+    0 6px 22px rgba(94, 81, 241, 0.4),
+    inset 0 0 85px rgba(0, 0, 0, 0.2),
+    inset 0 8px 21.7px rgba(172, 165, 245, 0.4);
+}
+
+/* Checkbox CGU — case custom (l'input natif est masqué). */
+.ob-check {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+}
+
+.ob-check input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+
+.ob-check-box {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(154, 148, 229, 0.5);
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ob-check input:checked + .ob-check-box {
+  border-color: rgba(124, 114, 235, 0.9);
+  background: rgba(94, 81, 241, 0.5);
+  box-shadow: 0 0 14px rgba(94, 81, 241, 0.5);
+}
+
+.ob-check input:checked + .ob-check-box::after {
+  content: '';
+  width: 6px;
+  height: 11px;
+  margin-top: -2px;
+  border: solid #f6f6ff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.ob-check input:focus-visible + .ob-check-box {
+  outline: 2px solid rgba(124, 114, 235, 0.7);
+  outline-offset: 2px;
+}
+
+.ob-check-label {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: rgba(246, 246, 255, 0.6);
+}
+
+/* Bouton Enregistrer — aligné à droite, état désactivé tant que les CGU
+   ne sont pas cochées. */
+.ob-pres-submit { align-self: flex-end; }
+
+.ob-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Retour en bas à gauche (pas de barre de nav sur cet écran). */
+.ob-pres-back {
+  position: absolute;
+  left: 6vw;
+  bottom: 6vh;
+}
+
+/* ─── Mot de passe — jauge de force + critères ────────────────────────────── */
+.ob-pwd-meter {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.ob-pwd-bar {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.ob-pwd-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 0;
+  border-radius: 32px;
+  background: linear-gradient(90deg, #4331f9, #7c72eb);
+  transition: width 0.3s ease;
+}
+.ob-pwd-bar[data-score="1"]::after { width: 33%; }
+.ob-pwd-bar[data-score="2"]::after { width: 66%; }
+.ob-pwd-bar[data-score="3"]::after { width: 100%; }
+
+.ob-pwd-strength {
+  flex-shrink: 0;
+  min-width: 52px;
+  font-family: var(--font-ui);
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: rgba(246, 246, 255, 0.6);
+}
+
+.ob-pwd-reqs {
+  margin: 6px 0 0;
+  padding-left: 22px;
+  list-style: disc;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+  color: rgba(246, 246, 255, 0.5);
+}
+
+/* Critère satisfait → mis en avant en violet clair */
+.ob-pwd-reqs li.is-ok { color: #b8b4f0; }
+.ob-pwd-reqs li.is-ok::marker { color: #7c72eb; }
+
+@media (max-width: 900px) {
+  .ob-pres-form {
+    position: static;
+    transform: none;
+    width: auto;
+    margin: 26vh 6vw 0;
+    gap: 20px;
+  }
+  .ob-pres-back { left: 6vw; bottom: 4vh; }
 }
 
 @media (max-width: 900px) {
