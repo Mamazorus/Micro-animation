@@ -376,8 +376,13 @@
   width: 52px;
   height: 52px;
   flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 7px;
+  border-radius: 50%;
   object-fit: contain;
-  filter: drop-shadow(0 0 12px rgba(94, 81, 241, 0.5));
+  background: radial-gradient(circle at 50% 35%, rgba(124, 114, 235, 0.3), rgba(11, 9, 27, 0.6));
+  border: 1.5px solid rgba(172, 165, 245, 0.4);
+  box-shadow: 0 0 14px rgba(94, 81, 241, 0.45);
 }
 .ob-feed-userinfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ob-feed-username {
@@ -403,7 +408,8 @@
   display: flex;
   flex-direction: column;
   gap: 26px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .ob-feed-head { display: flex; flex-direction: column; gap: 22px; }
@@ -433,6 +439,8 @@
 
 .ob-feed-filters { display: flex; flex-wrap: wrap; gap: 12px; }
 .ob-feed-chip {
+  appearance: none;
+  -webkit-appearance: none;
   padding: 10px 20px;
   border-radius: 100px;
   background: #100e25;
@@ -449,12 +457,11 @@
 .ob-feed-chip--more { color: rgba(246, 246, 255, 0.55); }
 
 .ob-feed-grid {
-  flex: 1;
-  min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 22px;
   align-content: start;
+  padding-bottom: 8px;
 }
 .ob-feed-card {
   display: flex;
@@ -498,6 +505,48 @@
   color: #f6f6ff;
   background: radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.3), rgba(94, 81, 241, 0.2));
   border: 1px solid rgba(124, 114, 235, 0.4);
+}
+
+/* Interactions au survol + scroll — pour pousser le côté « vraie app ».
+   Le feed ne capte les clics/survols/scroll QUE lorsqu'il est à l'écran
+   (is-active), sinon il bloquerait les autres écrans superposés. */
+.ob-screen--feed.is-active { pointer-events: auto; }
+
+.ob-feed-card, .ob-feed-install, .ob-feed-chip, .ob-feed-navitem { cursor: pointer; }
+
+.ob-feed-card { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.ob-feed-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(124, 114, 235, 0.5);
+  box-shadow: 0 10px 28px rgba(94, 81, 241, 0.28);
+}
+.ob-feed-card:hover .ob-feed-thumb { border-color: rgba(124, 114, 235, 0.3); }
+
+.ob-feed-install { transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+.ob-feed-install:hover {
+  border-color: rgba(124, 114, 235, 0.75);
+  box-shadow: 0 0 16px rgba(94, 81, 241, 0.45);
+}
+
+.ob-feed-chip { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.ob-feed-chip:hover { border-color: rgba(154, 148, 229, 0.5); }
+
+.ob-feed-navitem { transition: color 0.2s ease; }
+.ob-feed-navitem:hover { color: #f6f6ff; }
+.ob-feed-navitem:hover .ob-feed-navdot { border-color: rgba(124, 114, 235, 0.5); }
+
+/* Barre de scroll fine et discrète (violet) */
+.ob-feed-main::-webkit-scrollbar { width: 10px; }
+.ob-feed-main::-webkit-scrollbar-track { background: transparent; }
+.ob-feed-main::-webkit-scrollbar-thumb {
+  background: rgba(124, 114, 235, 0.35);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.ob-feed-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 114, 235, 0.55);
+  background-clip: padding-box;
 }
 
 /* Bouton secondaire (Retour) : contour violet clair, fond transparent */
@@ -590,9 +639,11 @@
   position: absolute;
   left: 6vw;
   right: 6vw;
+  top: 24vh;
   bottom: 13vh;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  align-content: center;
   gap: 24px;
 }
 
@@ -600,9 +651,9 @@
 .ob-why-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 26px 24px;
-  border-radius: 24px;
+  gap: 22px;
+  padding: clamp(24px, 2.6vh, 32px) 24px;
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(12px);
@@ -614,8 +665,8 @@
 
 .ob-why-icon {
   display: inline-flex;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   color: #aca5f5;
 }
 
@@ -629,23 +680,25 @@
   margin: 0;
   font-family: var(--font-display);
   font-optical-sizing: auto;
-  font-size: 19px;
-  font-weight: 600;
-  color: #f6f6ff;
+  font-size: clamp(22px, 2.2vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.011em;
+  line-height: 1.2;
+  color: #ededed;
 }
 
 .ob-why-card p {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: clamp(15px, 1.4vw, 20px);
   line-height: 1.5;
-  color: rgba(246, 246, 255, 0.5);
+  letter-spacing: -0.011em;
+  color: #ededed;
 }
 
 /* Remplace le carré gris (placeholder Figma) par une surface vitrée + lueur */
 .ob-why-card-media {
-  margin-top: 8px;
-  height: 124px;
+  height: clamp(150px, 23vh, 256px);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background:
@@ -658,7 +711,7 @@
 
 @media (max-width: 900px) {
   .ob-why-head { right: 6vw; }
-  .ob-why-cards { grid-template-columns: 1fr; bottom: 8vh; }
+  .ob-why-cards { grid-template-columns: 1fr; top: auto; bottom: 8vh; align-content: end; }
   .ob-why-card-media { height: 80px; }
 }
 

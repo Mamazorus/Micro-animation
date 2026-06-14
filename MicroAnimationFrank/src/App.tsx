@@ -111,8 +111,15 @@ const FEED_SKILLS = [
   { name: 'Skill 4', rating: '4.5', installs: '8k installs' },
   { name: 'Skill 5', rating: '3.9', installs: '500 installs' },
   { name: 'Skill 6', rating: '4.0', installs: '1.1k installs' },
+  { name: 'Skill 7', rating: '4.7', installs: '3.2k installs' },
+  { name: 'Skill 8', rating: '4.2', installs: '900 installs' },
+  { name: 'Skill 9', rating: '4.9', installs: '12k installs' },
+  { name: 'Skill 10', rating: '4.1', installs: '740 installs' },
+  { name: 'Skill 11', rating: '4.3', installs: '5.5k installs' },
+  { name: 'Skill 12', rating: '4.6', installs: '2k installs' },
 ]
 const FEED_NAV = ['Feed personnalisé', 'Explorer', 'Mes Skills', 'Paramètres']
+const FEED_EXTRA_FILTERS = ['Gratuit', 'Populaire', 'Récent', 'Vérifié', 'Tendance']
 
 /* Mascotte + rôle selon le domaine choisi (1re spécialité). Finance/Graphisme/Autre
    retombent sur ui/ux (mascottes Figma pas encore exportables proprement). */
@@ -127,17 +134,71 @@ const DOMAIN_INFO: Record<Spec, { mascot: string; role: string; label: string }>
 
 /* Écran « Plus précisément ? » — tags multi-select groupés par catégorie.
    On réutilise le composant .ob-ai-chip (variante --tag) plutôt que le style
-   « texte dégradé » du Figma. Clé de sélection = `${groupe}|${option}`. */
-const PRECISE_GROUPS = [
-  { key: 'style', label: 'Style visuel',
-    options: ['Brutalisme', 'Minimalisme', 'Glassmorphique', 'Skeumorphe'] },
-  { key: 'produit', label: 'Type de produit',
-    options: ['Mobile app', 'Web app', 'Landing page', 'Dashboard', 'Home page', 'E-commerce'] },
-  { key: 'expertise', label: 'Expertise',
-    options: ['Design system', 'Prototypage', 'Wireframing', 'User research', 'Accessibilité'] },
-  { key: 'outils', label: 'Outils',
-    options: ['Figma', 'Framer', 'Sketch', 'Penpot'] },
-]
+   « texte dégradé » du Figma. Clé de sélection = `${groupe}|${option}`.
+   Les groupes DÉPENDENT du domaine principal choisi à l'écran « spécialité »
+   (cf. PRECISE_BY_DOMAIN) : un profil finance n'a pas à voir « Style visuel ».
+   La clé de groupe peut se répéter d'un domaine à l'autre (ex. `outils`) sans
+   collision, puisque seules comptent les paires `${groupe}|${option}`. */
+type PreciseGroup = { key: string; label: string; options: string[] }
+
+const PRECISE_BY_DOMAIN: Record<Spec, PreciseGroup[]> = {
+  code: [
+    { key: 'langages', label: 'Langages',
+      options: ['JavaScript', 'TypeScript', 'Python', 'Go', 'Rust', 'PHP', 'Java', 'C#'] },
+    { key: 'stack', label: 'Stack',
+      options: ['React', 'Vue', 'Node.js', 'Next.js', 'Django', 'Laravel'] },
+    { key: 'domaine', label: 'Domaine',
+      options: ['Frontend', 'Backend', 'Mobile', 'DevOps', 'Data / IA', 'Jeux vidéo'] },
+    { key: 'outils', label: 'Outils',
+      options: ['VS Code', 'GitHub', 'Docker', 'Postman'] },
+  ],
+  graphisme: [
+    { key: 'discipline', label: 'Discipline',
+      options: ['Identité visuelle', 'Illustration', 'Motion design', 'Édition', 'Packaging', 'Typographie'] },
+    { key: 'style', label: 'Style',
+      options: ['Minimalisme', 'Rétro', '3D', 'Flat design', 'Brutalisme'] },
+    { key: 'outils', label: 'Outils',
+      options: ['Photoshop', 'Illustrator', 'InDesign', 'After Effects', 'Blender'] },
+  ],
+  uiux: [
+    { key: 'style', label: 'Style visuel',
+      options: ['Brutalisme', 'Minimalisme', 'Glassmorphique', 'Skeumorphe'] },
+    { key: 'produit', label: 'Type de produit',
+      options: ['Mobile app', 'Web app', 'Landing page', 'Dashboard', 'Home page', 'E-commerce'] },
+    { key: 'expertise', label: 'Expertise',
+      options: ['Design system', 'Prototypage', 'Wireframing', 'User research', 'Accessibilité'] },
+    { key: 'outils', label: 'Outils',
+      options: ['Figma', 'Framer', 'Sketch', 'Penpot'] },
+  ],
+  marketing: [
+    { key: 'canaux', label: 'Canaux',
+      options: ['SEO', 'Réseaux sociaux', 'Email', 'Publicité payante', 'Content'] },
+    { key: 'objectif', label: 'Objectif',
+      options: ['Acquisition', 'Conversion', 'Fidélisation', 'Notoriété'] },
+    { key: 'expertise', label: 'Expertise',
+      options: ['Copywriting', 'Growth', 'Analytics', 'Branding', 'Influence'] },
+    { key: 'outils', label: 'Outils',
+      options: ['Google Ads', 'Meta Ads', 'Mailchimp', 'HubSpot'] },
+  ],
+  finance: [
+    { key: 'domaine', label: 'Domaine',
+      options: ['Comptabilité', 'Analyse financière', 'Investissement', 'Trading', 'Budget', 'Reporting'] },
+    { key: 'expertise', label: 'Expertise',
+      options: ['Modélisation', 'Prévision', 'Audit', 'Fiscalité', 'Gestion du risque'] },
+    { key: 'marches', label: 'Marchés',
+      options: ['Actions', 'Crypto', 'Immobilier', 'Obligations'] },
+    { key: 'outils', label: 'Outils',
+      options: ['Excel', 'Power BI', 'SAP', 'QuickBooks'] },
+  ],
+  autre: [
+    { key: 'usage', label: 'Usage principal',
+      options: ['Rédaction', 'Recherche', 'Productivité', 'Automatisation', 'Apprentissage'] },
+    { key: 'contexte', label: 'Contexte',
+      options: ['Personnel', 'Professionnel', 'Études', 'Side project'] },
+    { key: 'outils', label: 'Outils',
+      options: ['Notion', 'Google Workspace', 'Slack', 'Excel'] },
+  ],
+}
 
 /* Bulles d'interrogation « libérées » autour de la tête de Frank sur l'écran IA.
    dx/dy = point d'apparition autour d'elle (px) ; rise = montée douce (× hauteur) ;
@@ -306,6 +367,11 @@ function Onboarding() {
   const idxRef       = useRef(0)
   const animatingRef = useRef(false)
   const reduceRef    = useRef(false)
+  // Reconstruction des segments quand le domaine change (les groupes de l'écran
+  // « Plus précisément ? » en dépendent) : assignée dans l'effet principal,
+  // appelée par l'effet [primaryDomain]. domainInitRef ignore le 1er passage.
+  const rebuildPreciseRef = useRef<(() => void) | null>(null)
+  const domainInitRef = useRef(true)
 
   // Deep links de prévisualisation : ?ob=skill | ?ob=why (état figé), ?frz=0..1 (scrub)
   const [step, setStep] = useState<Step>(() => {
@@ -323,6 +389,9 @@ function Onboarding() {
   const [presPwd, setPresPwd] = useState('')
   const [presPwd2, setPresPwd2] = useState('')
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+  // Feed : filtres choisis (chips actifs) + affichage de filtres supplémentaires.
+  const [feedFilters, setFeedFilters] = useState<Set<string>>(() => new Set())
+  const [showFilters, setShowFilters] = useState(false)
 
   // Validations dérivées (recalculées à chaque rendu).
   // Accès à « Créer ton mot de passe » : les 2 champs remplis + CGU cochées.
@@ -346,8 +415,24 @@ function Onboarding() {
   // Personnalisation du feed à partir des choix du parcours.
   const primaryDomain: Spec = [...selectedSpecs][0] ?? 'uiux'
   const domainInfo = DOMAIN_INFO[primaryDomain]
+  // Groupes de « Plus précisément ? » propres au domaine principal choisi.
+  const preciseGroups = PRECISE_BY_DOMAIN[primaryDomain]
   const userName = presName.trim() || 'toi'
   const userAis = [...selectedAis].slice(0, 2).join(' + ') || 'tes IA'
+
+  const toggleFeedFilter = (f: string) =>
+    setFeedFilters(prev => {
+      const next = new Set(prev)
+      if (next.has(f)) next.delete(f)
+      else next.add(f)
+      return next
+    })
+  // À l'arrivée sur le feed, on coche par défaut les filtres « contexte » (domaine + IA).
+  useEffect(() => {
+    if (step === 'feed') {
+      setFeedFilters(prev => (prev.size ? prev : new Set([domainInfo.label, ...[...selectedAis].slice(0, 2)])))
+    }
+  }, [step])
 
   useEffect(() => {
     const frank = frankRef.current
@@ -652,7 +737,12 @@ function Onboarding() {
       t.to([prNavRef.current, prSkipRef.current],
         { autoAlpha: 0, y: 16, duration: 0.3, stagger: 0.06, ease: 'power2.in' }, 0)
       t.to(prHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
-      t.to([...prLabels, ...prChips], { autoAlpha: 0, y: 16, duration: 0.34, stagger: 0.015, ease: 'power2.in' }, 0)
+      // Nœuds re-interrogés à la construction : les groupes dépendent du domaine
+      // (PRECISE_BY_DOMAIN) et sont remplacés par React après le montage → on ne
+      // fige pas la capture initiale, sinon la sortie animerait d'anciens nœuds.
+      const prLabelsNow = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-pr-label')) : []
+      const prChipsNow  = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-ai-chip')) : []
+      t.to([...prLabelsNow, ...prChipsNow], { autoAlpha: 0, y: 16, duration: 0.34, stagger: 0.015, ease: 'power2.in' }, 0)
 
       // Frank avance au premier plan gauche (plus grand, droit) — dérive douce et
       // DIRECTE : trajet 2 points, sans point intermédiaire au-dessus de la cible
@@ -780,6 +870,22 @@ function Onboarding() {
     const buildSegments = () => {
       segsRef.current.forEach(t => t.kill())
       segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite(), buildSpecialitePrecise(), buildPrecisePresent(), buildPresentPassword(), buildPasswordPlan(), buildPlanFeed()]
+    }
+
+    // Quand le domaine change, l'écran « Plus précisément ? » reçoit de nouveaux
+    // groupes (PRECISE_BY_DOMAIN) → React remplace ses chips/labels. On re-cache
+    // (ou ré-affiche si l'écran est déjà passé) ces nouveaux nœuds puis on
+    // reconstruit les segments qui les référencent. Même logique qu'onResize.
+    rebuildPreciseRef.current = () => {
+      if (animatingRef.current) return
+      const labels = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-pr-label')) : []
+      const chips  = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-ai-chip')) : []
+      const i = idxRef.current
+      const passed = i > STEPS.indexOf('precise')
+      gsap.set(labels, passed ? { autoAlpha: 1, y: 0 } : { autoAlpha: 0, y: 16 })
+      gsap.set(chips,  passed ? { autoAlpha: 1, y: 0, scale: 1 } : { autoAlpha: 0, y: 20, scale: 0.9 })
+      buildSegments()
+      segsRef.current.forEach((t, k) => t.progress(k < i ? 1 : 0))
     }
 
     let intro: gsap.core.Timeline | undefined
@@ -1047,6 +1153,15 @@ function Onboarding() {
     }
   }, [step])
 
+  // Le domaine choisi (1re spécialité) détermine les groupes de « Plus précisément ? ».
+  // Quand il change : on repart sur des choix vierges (autre domaine = autres choix)
+  // et on reconstruit les segments concernés (React a remplacé les chips de l'écran).
+  useEffect(() => {
+    if (domainInitRef.current) { domainInitRef.current = false; return }
+    setSelectedPrecise(new Set())
+    rebuildPreciseRef.current?.()
+  }, [primaryDomain])
+
   const goNext = () => {
     const i = idxRef.current
     if (animatingRef.current || i >= STEPS.length - 1) return
@@ -1244,7 +1359,7 @@ function Onboarding() {
           <p className="ob-subtitle">Choix multiple. On affinera tes Skills.</p>
         </div>
         <div ref={prGroupsRef} className="ob-pr-groups">
-          {PRECISE_GROUPS.map(({ key, label, options }) => (
+          {preciseGroups.map(({ key, label, options }) => (
             <div key={key} className="ob-pr-group">
               <p className="ob-pr-label">{label}</p>
               <div className="ob-pr-row">
@@ -1357,7 +1472,7 @@ function Onboarding() {
       </div>
 
       {/* Écran 10 — feed (arrivée sur l'app). Personnalisé avec les choix du parcours. */}
-      <div className="ob-screen ob-screen--feed">
+      <div className={`ob-screen ob-screen--feed${step === 'feed' ? ' is-active' : ''}`}>
         <aside ref={feedSideRef} className="ob-feed-side">
           <p className="ob-feed-logo"><em>Frank</em></p>
           <nav className="ob-feed-nav">
@@ -1383,9 +1498,19 @@ function Onboarding() {
               <p className="ob-feed-banner-p">Salut {userName}, voici ton feed perso adapté à {userAis} et {domainInfo.label}.</p>
             </div>
             <div className="ob-feed-filters">
-              <span className="ob-feed-chip is-on">{domainInfo.label}</span>
-              {[...selectedAis].slice(0, 2).map(ai => <span key={ai} className="ob-feed-chip">{ai}</span>)}
-              <span className="ob-feed-chip ob-feed-chip--more">+ Filtres</span>
+              {[domainInfo.label, ...[...selectedAis].slice(0, 2)].map(f => (
+                <button key={f} type="button"
+                  className={`ob-feed-chip${feedFilters.has(f) ? ' is-on' : ''}`}
+                  onClick={() => toggleFeedFilter(f)}>{f}</button>
+              ))}
+              <button type="button"
+                className={`ob-feed-chip ob-feed-chip--more${showFilters ? ' is-on' : ''}`}
+                onClick={() => setShowFilters(s => !s)}>{showFilters ? '− Moins' : '+ Filtres'}</button>
+              {showFilters && FEED_EXTRA_FILTERS.map(f => (
+                <button key={f} type="button"
+                  className={`ob-feed-chip${feedFilters.has(f) ? ' is-on' : ''}`}
+                  onClick={() => toggleFeedFilter(f)}>{f}</button>
+              ))}
             </div>
           </div>
           <div ref={feedCardsRef} className="ob-feed-grid">
