@@ -1,11 +1,11 @@
 /* ─── Typographie de l'onboarding ───────────────────────────────────────────
    --font-display : Google Sans Flex (sans géométrique chaud) → titres, cartes, corps.
-   --font-ui      : Inter → boutons, liens, chips (libellés d'interface).
+   --font-ui      : Google Sans Flex → boutons, liens, chips (libellés d'interface).
    --font-voice   : Roboto Serif (romain) → la voix de Frank (sous-titres) + le mot « Frank ».
                     Serif contemporain à empattements fins, variable (opsz/wght). */
 :root {
   --font-display: 'Google Sans Flex', system-ui, -apple-system, sans-serif;
-  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-ui: 'Google Sans Flex', system-ui, -apple-system, sans-serif;
   --font-voice: 'Roboto Serif', Georgia, 'Times New Roman', serif;
 }
 

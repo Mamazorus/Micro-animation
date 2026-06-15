@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import gsap from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import OnboardingGrid from './OnboardingGrid'
@@ -28,6 +28,30 @@ type FrankState = { x: number; y: number; scale: number; rot: number; opacity: n
    à un scale visuel ~16 ; éviter de dépasser ~18 (au-delà, la taille brute de couche
    redevient limitante, même sans lueur). */
 const FRANK_SS = 4
+
+/* Décodage adaptatif de la grosse boucle idle (frank-sur-place). La source pleine est en
+   4000×4000 (VP9) : superbe au gros plan d'intro, mais son décodage EN BOUCLE sature le CPU
+   des machines sans décodage matériel VP9 4K (iGPU anciens) → tout le site lague et les
+   animations saccadent. On sert donc une version allégée 1440² (rendu identique au repos,
+   Frank fait ~360–720px à l'écran) sauf aux machines clairement costaudes, qui gardent la 4K.
+   saveData (mode éco data) force l'allégé. La rétrogradation dynamique sur frames perdues
+   viendra compléter cette heuristique statique (étape 2). */
+const pickFrankTier = (): 'high' | 'low' => {
+  if (typeof navigator === 'undefined') return 'low'
+  // Override de test : ?frank=hd force la 4K, ?frank=light force le 1440² (pour comparer)
+  const forced = new URLSearchParams(window.location.search).get('frank')
+  if (forced === 'hd') return 'high'
+  if (forced === 'light') return 'low'
+  const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } }
+  if (nav.connection?.saveData) return 'low'
+  const cores = nav.hardwareConcurrency ?? 0
+  const mem = nav.deviceMemory // undefined si le navigateur ne l'expose pas (Firefox/Safari)
+  return cores >= 8 && (mem === undefined || mem >= 8) ? 'high' : 'low'
+}
+const FRANK_TIER = pickFrankTier()
+const FRANK_IDLE_SRC = FRANK_TIER === 'high'
+  ? '/assets/frank-sur-place.webm'
+  : '/assets/frank-sur-place-1440.webm'
 
 /* Profondeur de champ : l'opacité « de repos » de Frank découle de sa taille
    VISUELLE (le numérateur des scales, indépendant de FRANK_SS). Plus il est
@@ -434,7 +458,10 @@ function Onboarding() {
     }
   }, [step])
 
-  useEffect(() => {
+  // useLayoutEffect (et non useEffect) : on pose les autoAlpha:0 et le --ss AVANT le premier
+  // paint, sinon le navigateur affiche une frame avec tous les écrans de l'onboarding visibles
+  // (ils sont dans le HTML) avant que GSAP ne les cache → flash au chargement.
+  useLayoutEffect(() => {
     const frank = frankRef.current
     if (!frank) return
     // Suréchantillonnage : .ob-frank est layouté FRANK_SS× plus grand (cf. App.css + FRANK).
@@ -1234,7 +1261,7 @@ function Onboarding() {
           <div ref={frankFloatRef} className="ob-frank-float">
             <span className="ob-frank-glow" aria-hidden="true" />
             <video ref={frankVideoRef} className="ob-frank-svg" autoPlay loop muted playsInline aria-hidden="true">
-              <source src="/assets/frank-sur-place.webm" type="video/webm" />
+              <source src={FRANK_IDLE_SRC} type="video/webm" />
             </video>
             <video ref={frankSkillRef} className="ob-frank-skill" loop muted playsInline aria-hidden="true">
               <source src="/assets/composition-2.webm" type="video/webm" />

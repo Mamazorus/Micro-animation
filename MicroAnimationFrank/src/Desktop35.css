@@ -51,7 +51,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: 'Google Sans Flex', system-ui, sans-serif;
   font-size: 20px;
   font-weight: 500;
   letter-spacing: -0.04em;
@@ -92,7 +92,7 @@
 }
 
 .d35-headline .d35-subtitle {
-  font-family: Inter, system-ui, sans-serif;
+  font-family: 'Google Sans Flex', system-ui, sans-serif;
   font-size: 24px;
   font-weight: 600;
   line-height: 1.5;
@@ -233,7 +233,7 @@
 /* Label */
 .sp-btn-label {
   position: relative;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: 'Google Sans Flex', system-ui, sans-serif;
   font-size: 28.8px;
   font-weight: 500;
   line-height: 1.5;
@@ -471,7 +471,7 @@
   cursor: pointer;
   overflow: hidden;
 
-  font-family: Inter, system-ui, sans-serif;
+  font-family: 'Google Sans Flex', system-ui, sans-serif;
   font-size: 24px;
   font-weight: 500;
   letter-spacing: -0.04em;
@@ -507,7 +507,7 @@
   cursor: pointer;
   overflow: hidden;
 
-  font-family: Inter, system-ui, sans-serif;
+  font-family: 'Google Sans Flex', system-ui, sans-serif;
   font-size: 24px;
   font-weight: 500;
   letter-spacing: -0.04em;
