@@ -139,6 +139,19 @@
   pointer-events: auto;
 }
 
+/* Filet de masquage déterministe (cf. applyNet() dans App.tsx). Les .ob-screen sont
+   tous empilés à z-index:2 et ne sont normalement masqués que par l'autoAlpha
+   (visibility) que GSAP pose en fin de transition. Si une transition est interrompue
+   (navigation très rapide, saut « Passer »/« Feed → »), un écran peut rester à
+   visibility:visible et se peindre derrière le feed (dernier écran du DOM). Au repos,
+   applyNet() pose .ob-screen--off sur tout écran NON courant : on force alors son
+   contenu invisible — descendants compris, pour battre un visibility:visible inline
+   résiduel laissé par GSAP. !important pour primer sur le style inline. */
+.ob-screen--off,
+.ob-screen--off * {
+  visibility: hidden !important;
+}
+
 /* Écran 1 — Accueil : Frank au-dessus, texte dans la moitié basse */
 .ob-screen--welcome {
   flex-direction: column;
@@ -896,7 +909,9 @@
 /* Interactions au survol + scroll — pour pousser le côté « vraie app ».
    Le feed ne capte les clics/survols/scroll QUE lorsqu'il est à l'écran
    (is-active), sinon il bloquerait les autres écrans superposés. */
-.ob-screen--feed.is-active { pointer-events: auto; }
+/* Le feed actif passe devant les autres écrans (z-index:2) : garantie ultime qu'aucun
+   résidu d'onboarding ne se peigne par-dessus, en complément du filet .ob-screen--off. */
+.ob-screen--feed.is-active { pointer-events: auto; z-index: 3; }
 
 .ob-feed-card, .ob-feed-install, .ob-feed-chip, .ob-feed-navitem { cursor: pointer; }
 

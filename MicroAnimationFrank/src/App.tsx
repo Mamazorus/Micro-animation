@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import gsap from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import OnboardingGrid from './OnboardingGrid'
@@ -469,6 +469,10 @@ function Onboarding() {
   // « Plus précisément ? » en dépendent) : assignée dans l'effet principal,
   // appelée par l'effet [primaryDomain]. domainInitRef ignore le 1er passage.
   const rebuildPreciseRef = useRef<(() => void) | null>(null)
+  // settle(idx) : force l'état canonique d'une étape, exposé hors de l'effet pour
+  // les sauts (« Passer » / « Feed → ») et la navigation en reduced-motion.
+  const settleRef = useRef<((idx: number) => void) | null>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const domainInitRef = useRef(true)
 
   // Deep links de prévisualisation : ?ob=skill | ?ob=why (état figé), ?frz=0..1 (scrub)
@@ -605,6 +609,18 @@ function Onboarding() {
     }
   }, [mascotPickerOpen])
 
+  // Filet de masquage déterministe (cf. .ob-screen--off dans App.css). Au REPOS
+  // (settled=true, posé en fin de transition/saut), tout écran NON courant reçoit
+  // .ob-screen--off → forcé invisible, même si une transition interrompue (navigation
+  // rapide / saut) l'avait laissé à autoAlpha>0 (sinon il resterait peint derrière le
+  // feed, dernier écran du DOM à z-index égal). Pendant une transition (settled=false)
+  // la classe est retirée de tous → GSAP garde la main. Les .ob-screen sont en ordre
+  // DOM = ordre STEPS, d'où l'indexation (les écrans ia→plan partagent .ob-screen--ia).
+  const applyNet = (idx: number, settled: boolean) => {
+    const screens = rootRef.current?.querySelectorAll('.ob-screen')
+    screens?.forEach((s, k) => s.classList.toggle('ob-screen--off', settled && k !== idx))
+  }
+
   // useLayoutEffect (et non useEffect) : on pose les autoAlpha:0 et le --ss AVANT le premier
   // paint, sinon le navigateur affiche une frame avec tous les écrans de l'onboarding visibles
   // (ils sont dans le HTML) avant que GSAP ne les cache → flash au chargement.
@@ -643,7 +659,7 @@ function Onboarding() {
     const startIdx = STEPS.indexOf(startStep)
     idxRef.current = startIdx
 
-    const done = () => { animatingRef.current = false }
+    const done = () => { animatingRef.current = false; applyNet(idxRef.current, true) }
 
     gsap.set(frank, { transformOrigin: '50% 51%' })
     gsap.set(welcomeEls, { autoAlpha: 0, y: 22 })
@@ -689,6 +705,20 @@ function Onboarding() {
         scale: f.scale, rotation: f.rot, opacity: f.opacity,
       })
     }
+
+    // Force l'état CANONIQUE de l'étape idx, quel que soit l'état laissé par une
+    // transition interrompue ou un saut. Invariant COMPLET sur TOUT l'éventail de
+    // segments (comme onResize/rebuild, et non seulement ceux traversés), + recalage
+    // de Frank/mascotte, + filet CSS réactivé. Point de convergence des sauts.
+    // suppressEvents laissé à false : le segment plan→feed doit pouvoir tirer son
+    // callback « is-revealed » qui révèle les cartes du feed lors d'un saut direct.
+    const settle = (idx: number) => {
+      segsRef.current.forEach((t, k) => t.progress(k < idx ? 1 : 0))
+      applyFrank(STEPS[idx])
+      applyMascotKind(STEPS[idx])
+      applyNet(idx, true)
+    }
+    settleRef.current = settle
 
     // Segment 0 — accueil → « Un clic suffit » : la plongée (inchangée)
     const buildWelcomeSkill = () => {
@@ -1068,6 +1098,7 @@ function Onboarding() {
       // Aperçu figé : on pose l'état de départ et on scrub éventuellement le bon segment
       applyFrank(startStep)
       applyMascotKind(startStep)
+      applyNet(startIdx, false)   // aperçu : GSAP pose tout explicitement, filet désactivé
       if (startStep === 'welcome') gsap.set(welcomeEls, { autoAlpha: 1, y: 0 })
       else if (startStep === 'skill') gsap.set(skillEls, { autoAlpha: 1, y: 0 })
       else if (startStep === 'why') gsap.set([...whyEls, ...whyCards], { autoAlpha: 1, y: 0 })
@@ -1097,11 +1128,13 @@ function Onboarding() {
         applyFrank('welcome')
         gsap.set(welcomeEls, { autoAlpha: 1, y: 0 })
         gsap.set(bgDecoRef.current, { autoAlpha: 1 })
+        applyNet(idxRef.current, true)   // pas d'animation : filet actif d'emblée
       } else {
         // Verrou pendant le gros plan + dézoom d'intro : sinon « Commencer » / « Feed → »
         // (gardés par animatingRef) lancent une transition PAR-DESSUS l'intro → Frank
         // doublement animé et écrans superposés. Relâché par onComplete (done) ci-dessus.
         animatingRef.current = true
+        applyNet(idxRef.current, false)   // intro en cours → GSAP a la main, filet off (done() le réactive)
         introPlaying = true   // coupe la traînée de bulles pour toute la durée du dézoom d'intro
         // Lueur coupée pendant le gros plan (hors-champ à ce scale, mais lourde au GPU) ;
         // rétablie en cours de dézoom. Évite la saturation GPU qui faisait tout buguer.
@@ -1265,6 +1298,9 @@ function Onboarding() {
       float?.driver.kill()
       if (float) gsap.killTweensOf(float.state)
       segsRef.current.forEach(t => t.kill())
+      // kill() ne tire pas onComplete : sans ça, le verrou posé par l'intro (ou une
+      // transition) resterait coincé après un démontage (double-montage StrictMode en dev).
+      animatingRef.current = false
       if (trailEmitter) gsap.ticker.remove(trailEmitter)
       if (trailLayer) gsap.killTweensOf(Array.from(trailLayer.children))
     }
@@ -1343,38 +1379,37 @@ function Onboarding() {
     if (animatingRef.current || i >= STEPS.length - 1) return
     idxRef.current = i + 1
     setStep(STEPS[i + 1])
-    if (reduceRef.current) { segsRef.current[i].progress(1); return }
+    if (reduceRef.current) { settleRef.current?.(i + 1); return }
     animatingRef.current = true
+    applyNet(i + 1, false)
     segsRef.current[i].play()
   }
 
-  const goToPresent = () => {
+  // Saut direct vers une étape avancée (« Passer » → present, « Feed → » → feed).
+  // Au lieu de ne snapper que les segments traversés (ce qui laissait les écrans en
+  // AVAL à autoAlpha>0 → visibles derrière le feed lors de navigations rapides), on
+  // délègue à settle() : invariant COMPLET sur tous les segments + recalage de Frank
+  // + filet CSS. L'état obtenu est déterministe quel que soit l'ordre des clics, donc
+  // un goNext/goPrev ultérieur repart d'une base saine.
+  const jumpTo = (target: Step) => {
     if (animatingRef.current) return
-    const targetIdx = STEPS.indexOf('present')
-    const current = idxRef.current
-    if (current >= targetIdx) return
-    for (let k = current; k < targetIdx; k++) segsRef.current[k].progress(1)
+    const targetIdx = STEPS.indexOf(target)
+    if (idxRef.current >= targetIdx) return
     idxRef.current = targetIdx
-    setStep('present')
+    setStep(target)
+    settleRef.current?.(targetIdx)
   }
-
-  const goToFeed = () => {
-    if (animatingRef.current) return
-    const targetIdx = STEPS.indexOf('feed')
-    const current = idxRef.current
-    if (current >= targetIdx) return
-    for (let k = current; k < targetIdx; k++) segsRef.current[k].progress(1)
-    idxRef.current = targetIdx
-    setStep('feed')
-  }
+  const goToPresent = () => jumpTo('present')
+  const goToFeed = () => jumpTo('feed')
 
   const goPrev = () => {
     const i = idxRef.current
     if (animatingRef.current || i <= 0) return
     idxRef.current = i - 1
     setStep(STEPS[i - 1])
-    if (reduceRef.current) { segsRef.current[i - 1].progress(0); return }
+    if (reduceRef.current) { settleRef.current?.(i - 1); return }
     animatingRef.current = true
+    applyNet(i - 1, false)
     segsRef.current[i - 1].reverse()
   }
 
@@ -1406,7 +1441,7 @@ function Onboarding() {
     })
 
   return (
-    <div className={`ob-root onboarding-bg is-${step}`}>
+    <div ref={rootRef} className={`ob-root onboarding-bg is-${step}`}>
       {step !== 'feed' && (
         <button className="nav-btn" onClick={goToFeed}>Feed →</button>
       )}
@@ -1652,6 +1687,7 @@ function Onboarding() {
       <div className="ob-screen ob-screen--ia">
         <div ref={planHeadRef} className="ob-plan-head">
           <h1 className="ob-title ob-title--lg">Choisis ton plan</h1>
+          <p className="ob-subtitle"><strong>Commence gratuitement</strong>, sans carte bancaire.</p>
         </div>
         <div ref={planCardsRef} className="ob-plans">
           {PLANS.map(plan => (
