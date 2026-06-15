@@ -129,14 +129,13 @@
 .ob-screen {
   position: absolute;
   inset: 0;
-  /* Pas de z-index ici : z-index crée un stacking context qui isole les
-     descendants du fond réel et casse leur backdrop-filter en production.
-     L'ordre DOM (frank-layer avant ob-screen) suffit pour le z-order. */
+  z-index: 2;
   display: flex;
   pointer-events: none;
 }
 
-.ob-screen .ob-btn {
+.ob-screen .ob-btn,
+.ob-screen .ob-skip {
   pointer-events: auto;
 }
 
@@ -217,8 +216,7 @@
   letter-spacing: -0.04em;
   white-space: nowrap;
   cursor: pointer;
-  /* will-change retiré : promouvait le bouton sur un layer GPU isolé, ce qui
-     empêchait son backdrop-filter de voir les pixels derrière lui en production. */
+  will-change: opacity, transform;
 }
 
 /* Éclat de lumière en diagonale (reflet glass) repris du bouton Figma */
@@ -267,10 +265,9 @@
 }
 
 .ob-skip {
-  position: fixed;
+  position: absolute;
   top: 32px;
   left: 32px;
-  z-index: 100;
   border: none;
   background: none;
   color: rgba(246, 246, 255, 0.3);
@@ -280,21 +277,10 @@
   letter-spacing: -0.02em;
   cursor: pointer;
   transition: color 0.2s ease;
-  visibility: hidden;
-  pointer-events: none;
 }
 
 .ob-skip:hover {
   color: rgba(246, 246, 255, 0.55);
-}
-
-.is-skill .ob-skip,
-.is-why .ob-skip,
-.is-ia .ob-skip,
-.is-specialite .ob-skip,
-.is-precise .ob-skip {
-  visibility: visible;
-  pointer-events: auto;
 }
 
 .ob-skill-content {
@@ -329,15 +315,13 @@
    une seule fois (à la sortie de l'accueil), puis elle reste — plus de fondu
    entre les écrans. */
 .ob-nav--persist {
-  /* z-index retiré : inutile depuis que .ob-screen n'a plus de z-index.
-     animation sur opacity seule (sans transform) pour éviter de créer
-     un stacking context qui isolerait les .ob-btn et casserait leur backdrop-filter. */
+  z-index: 5;
   animation: ob-nav-appear 0.5s ease 0.2s both;
 }
 
 @keyframes ob-nav-appear {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ─── Écran feed (arrivée sur l'app) — wireframe Figma habillé à la DA ─────── */
@@ -1229,12 +1213,9 @@
    hauteur dictée par le contenu (plus de bande étirée trop haute). */
 .ob-plans {
   position: absolute;
-  /* Centrage sans transform (transform crée un stacking context qui casse
-     le backdrop-filter des .ob-plan-card en production) : inset + margin auto. */
-  inset: 0;
-  margin: auto;
-  margin-top: 27vh;
-  height: fit-content;
+  top: 54%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: min(94vw, 1080px);
   display: flex;
   gap: clamp(16px, 2vw, 32px);
