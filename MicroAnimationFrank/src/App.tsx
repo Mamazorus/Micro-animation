@@ -1586,7 +1586,7 @@ function IconCheck() {
 }
 
 export default function App() {
-  const [page, setPage] = useState(
+  const [page] = useState(
     new URLSearchParams(window.location.search).get('view') === 'grid' ? 1 : 0,
   )
   const pages = [<Onboarding key="ob" />, <OnboardingGrid key="grid" />]
