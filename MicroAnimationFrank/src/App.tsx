@@ -127,8 +127,21 @@ const PLANS = [
     feats: ['Installation sans limites', 'Éditeur de Skills', "Espaces d'équipe partagés", 'Crée et partage tes Skills privés', 'Accès prioritaire forte affluence'] },
 ]
 
+/* Skills vérifiés — c'est le 3e différenciateur de Frank (« 2 niveaux de
+   vérification »). Pour le rendre tangible dans le feed, on appose un badge
+   « vérifié » sur une partie des Skills, tirée au hasard au chargement du module
+   (donc figée pour la session : aucun recalcul ni clignotement au re-render).
+   Tirage à effectif fixe (et non un coup de dé par carte) → il y a toujours un
+   mélange vérifié / non vérifié visible, jamais zéro ni la totalité. */
+const pickVerified = <T,>(skills: T[], ratio = 0.5): (T & { verified: boolean })[] => {
+  const count = Math.round(skills.length * ratio)
+  const chosen = new Set<number>()
+  while (chosen.size < count) chosen.add(Math.floor(Math.random() * skills.length))
+  return skills.map((skill, i) => ({ ...skill, verified: chosen.has(i) }))
+}
+
 /* Écran feed (arrivée sur l'app) — encore en placeholder côté contenu. */
-const FEED_SKILLS = [
+const FEED_SKILLS = pickVerified([
   { name: 'Skill 1', rating: '4.6', installs: '1k installs' },
   { name: 'Skill 2', rating: '4.8', installs: '6k installs' },
   { name: 'Skill 3', rating: '4.4', installs: '2.4k installs' },
@@ -141,20 +154,36 @@ const FEED_SKILLS = [
   { name: 'Skill 10', rating: '4.1', installs: '740 installs' },
   { name: 'Skill 11', rating: '4.3', installs: '5.5k installs' },
   { name: 'Skill 12', rating: '4.6', installs: '2k installs' },
-]
-const FEED_NAV = ['Feed personnalisé', 'Explorer', 'Mes Skills', 'Paramètres']
+])
+const FEED_NAV = [
+  { label: 'Feed personnalisé', icon: 'home' },
+  { label: 'Explorer', icon: 'search' },
+  { label: 'Mes Skills', icon: 'doc' },
+  { label: 'Paramètres', icon: 'gear' },
+] as const
 const FEED_EXTRA_FILTERS = ['Gratuit', 'Populaire', 'Récent', 'Vérifié', 'Tendance']
 
-/* Mascotte + rôle selon le domaine choisi (1re spécialité). Finance/Graphisme/Autre
-   retombent sur ui/ux (mascottes Figma pas encore exportables proprement). */
+/* Mascotte + rôle selon le domaine choisi (1re spécialité). Chaque spécialité a
+   son profil Frank dédié (assets/mascots/*.svg : vecteurs détourés, fond transparent,
+   exportés de Figma) ; seul « Autre » retombe sur ui/ux faute de design dédié. */
 const DOMAIN_INFO: Record<Spec, { mascot: string; role: string; label: string }> = {
   code:      { mascot: 'dev',       role: 'DÉVELOPPEUR',    label: 'Code' },
-  graphisme: { mascot: 'uiux',      role: 'GRAPHISTE',      label: 'Graphisme' },
+  graphisme: { mascot: 'graphic',   role: 'GRAPHISTE',      label: 'Graphisme' },
   uiux:      { mascot: 'uiux',      role: 'UI/UX DESIGNER', label: 'UI/UX' },
   marketing: { mascot: 'marketing', role: 'MARKETER',       label: 'Marketing' },
-  finance:   { mascot: 'uiux',      role: 'ANALYSTE',       label: 'Finance' },
+  finance:   { mascot: 'finance',   role: 'ANALYSTE',       label: 'Finance' },
   autre:     { mascot: 'uiux',      role: 'CRÉATIF',        label: 'UI/UX' },
 }
+
+/* Mascottes proposées dans le sélecteur ouvert au clic sur l'avatar du feed (les 5
+   profils visuellement distincts). Ne change QUE l'icône affichée, pas le rôle ni le feed. */
+const MASCOT_CHOICES: { mascot: string; label: string }[] = [
+  { mascot: 'dev',       label: 'Dev'       },
+  { mascot: 'uiux',      label: 'UI/UX'     },
+  { mascot: 'graphic',   label: 'Graphisme' },
+  { mascot: 'marketing', label: 'Marketing' },
+  { mascot: 'finance',   label: 'Finance'   },
+]
 
 /* Écran « Plus précisément ? » — tags multi-select groupés par catégorie.
    On réutilise le composant .ob-ai-chip (variante --tag) plutôt que le style
@@ -416,6 +445,12 @@ function Onboarding() {
   // Feed : filtres choisis (chips actifs) + affichage de filtres supplémentaires.
   const [feedFilters, setFeedFilters] = useState<Set<string>>(() => new Set())
   const [showFilters, setShowFilters] = useState(false)
+  // Feed : état d'installation par Skill (animation « installation 1 clic »).
+  const [feedInstalls, setFeedInstalls] = useState<Record<string, 'installing' | 'installed'>>({})
+  // Feed : sélecteur de mascotte (clic sur l'avatar). Override purement visuel de
+  // l'icône, indépendant du domaine choisi (le rôle et les textes du feed ne changent pas).
+  const [mascotOverride, setMascotOverride] = useState<string | null>(null)
+  const [mascotPickerOpen, setMascotPickerOpen] = useState(false)
 
   // Validations dérivées (recalculées à chaque rendu).
   // Accès à « Créer ton mot de passe » : les 2 champs remplis + CGU cochées.
@@ -439,6 +474,9 @@ function Onboarding() {
   // Personnalisation du feed à partir des choix du parcours.
   const primaryDomain: Spec = [...selectedSpecs][0] ?? 'uiux'
   const domainInfo = DOMAIN_INFO[primaryDomain]
+  // Mascotte affichée dans la sidebar : l'override manuel (clic sur l'avatar) prime
+  // sur celle du domaine ; sinon on retombe sur la mascotte du domaine choisi.
+  const shownMascot = mascotOverride ?? domainInfo.mascot
   // Groupes de « Plus précisément ? » propres au domaine principal choisi.
   const preciseGroups = PRECISE_BY_DOMAIN[primaryDomain]
   const userName = presName.trim() || 'toi'
@@ -451,12 +489,28 @@ function Onboarding() {
       else next.add(f)
       return next
     })
+  // Installation 1 clic : la progression se joue seule (barre qui se remplit → coché),
+  // pour faire sentir la promesse « pas de terminal, Frank s'occupe de tout ».
+  const installSkill = (name: string) => {
+    setFeedInstalls(prev => (prev[name] ? prev : { ...prev, [name]: 'installing' }))
+    window.setTimeout(() => {
+      setFeedInstalls(prev => (prev[name] === 'installing' ? { ...prev, [name]: 'installed' } : prev))
+    }, 300)
+  }
   // À l'arrivée sur le feed, on coche par défaut les filtres « contexte » (domaine + IA).
   useEffect(() => {
     if (step === 'feed') {
       setFeedFilters(prev => (prev.size ? prev : new Set([domainInfo.label, ...[...selectedAis].slice(0, 2)])))
     }
   }, [step])
+
+  // Sélecteur de mascotte : fermeture à la touche Échap quand il est ouvert.
+  useEffect(() => {
+    if (!mascotPickerOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMascotPickerOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mascotPickerOpen])
 
   // useLayoutEffect (et non useEffect) : on pose les autoAlpha:0 et le --ss AVANT le premier
   // paint, sinon le navigateur affiche une frame avec tous les écrans de l'onboarding visibles
@@ -903,6 +957,7 @@ function Onboarding() {
     }
 
     let intro: gsap.core.Timeline | undefined
+    let introPlaying = false   // vrai pendant le gros plan d'ouverture + dézoom → pas de traînée de bulles
 
     // Flottement idle (cf. startFloat) : créé à amplitude nulle ; il éclot pendant
     // l'intro (dézoom gros plan → petit) ou apparaît en fondu en aperçu d'écran.
@@ -938,12 +993,17 @@ function Onboarding() {
       // Décor océanique masqué tant que Frank emplit l'écran (ses coins transparents
       // laisseraient voir le fond à quelques moments) → révélé en fondu au dézoom.
       gsap.set(bgDecoRef.current, { autoAlpha: 0 })
-      intro = gsap.timeline({ delay: reduce ? 0 : 1.0 })
+      intro = gsap.timeline({ delay: reduce ? 0 : 1.0, onComplete: () => { introPlaying = false; done() } })
       if (reduce) {
         applyFrank('welcome')
         gsap.set(welcomeEls, { autoAlpha: 1, y: 0 })
         gsap.set(bgDecoRef.current, { autoAlpha: 1 })
       } else {
+        // Verrou pendant le gros plan + dézoom d'intro : sinon « Commencer » / « Feed → »
+        // (gardés par animatingRef) lancent une transition PAR-DESSUS l'intro → Frank
+        // doublement animé et écrans superposés. Relâché par onComplete (done) ci-dessus.
+        animatingRef.current = true
+        introPlaying = true   // coupe la traînée de bulles pour toute la durée du dézoom d'intro
         // Lueur coupée pendant le gros plan (hors-champ à ce scale, mais lourde au GPU) ;
         // rétablie en cours de dézoom. Évite la saturation GPU qui faisait tout buguer.
         frank?.classList.add('is-intro')
@@ -1028,6 +1088,9 @@ function Onboarding() {
       }
 
       trailEmitter = (_time, dt) => {
+        // Première animation (gros plan d'ouverture → dézoom) : Frank arrive en scène
+        // sans traînée. Les bulles ne commencent qu'une fois posé sur l'accueil.
+        if (introPlaying) { lx = null; acc = 0; idleAcc = 0; wasEligible = false; return }
         const op    = parseFloat(String(gsap.getProperty(frank, 'opacity')))
         const scale = parseFloat(String(gsap.getProperty(frank, 'scale')))
         const x     = parseFloat(String(gsap.getProperty(frank, 'x')))
@@ -1514,21 +1577,64 @@ function Onboarding() {
       {/* Écran 10 — feed (arrivée sur l'app). Personnalisé avec les choix du parcours. */}
       <div className={`ob-screen ob-screen--feed${step === 'feed' ? ' is-active' : ''}`}>
         <aside ref={feedSideRef} className="ob-feed-side">
+          {/* Dégradé violet d'origine du Figma, appliqué au glyphe de l'item actif. */}
+          <svg className="ob-feed-defs" width="0" height="0" aria-hidden="true" focusable="false">
+            <defs>
+              <linearGradient id="feed-ic-grad" x1="1" y1="1" x2="0" y2="0">
+                <stop stopColor="#7E74F0" />
+                <stop offset="1" stopColor="#2E2962" />
+              </linearGradient>
+            </defs>
+          </svg>
           <p className="ob-feed-logo"><em>Frank</em></p>
           <nav className="ob-feed-nav">
             {FEED_NAV.map((item, i) => (
-              <span key={item} className={`ob-feed-navitem${i === 0 ? ' is-active' : ''}`}>
-                <span className="ob-feed-navdot" aria-hidden="true" />
-                {item}
+              <span key={item.label} className={`ob-feed-navitem${i === 0 ? ' is-active' : ''}`}>
+                <span className="ob-feed-navicon" aria-hidden="true"><FeedNavIcon kind={item.icon} /></span>
+                {item.label}
               </span>
             ))}
           </nav>
           <div className="ob-feed-user">
-            <img className="ob-feed-avatar" src={`/assets/mascots/${domainInfo.mascot}.png`} alt="" aria-hidden="true" />
+            <button
+              type="button"
+              className="ob-feed-avatar-btn"
+              aria-label="Changer de mascotte"
+              aria-haspopup="menu"
+              aria-expanded={mascotPickerOpen}
+              onClick={() => setMascotPickerOpen(o => !o)}
+            >
+              <img className="ob-feed-avatar" src={`/assets/mascots/${shownMascot}.svg`} alt="" aria-hidden="true" />
+              <span className="ob-feed-avatar-edit" aria-hidden="true"><IconPen /></span>
+            </button>
             <span className="ob-feed-userinfo">
               <span className="ob-feed-username">{userName}</span>
               <span className="ob-feed-userrole">{domainInfo.role}</span>
             </span>
+
+            {mascotPickerOpen && (
+              <>
+                <div className="ob-mascot-overlay" onClick={() => setMascotPickerOpen(false)} />
+                <div className="ob-mascot-pop" role="menu" aria-label="Choisir une mascotte">
+                  <p className="ob-mascot-pop-title">Mascotte</p>
+                  <div className="ob-mascot-pop-grid">
+                    {MASCOT_CHOICES.map(c => (
+                      <button
+                        key={c.mascot}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={shownMascot === c.mascot}
+                        className={`ob-mascot-choice${shownMascot === c.mascot ? ' is-active' : ''}`}
+                        onClick={() => { setMascotOverride(c.mascot); setMascotPickerOpen(false) }}
+                      >
+                        <img src={`/assets/mascots/${c.mascot}.svg`} alt="" aria-hidden="true" />
+                        <span>{c.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </aside>
         <div className="ob-feed-main">
@@ -1554,16 +1660,45 @@ function Onboarding() {
             </div>
           </div>
           <div ref={feedCardsRef} className="ob-feed-grid">
-            {FEED_SKILLS.map(skill => (
-              <article key={skill.name} className="ob-feed-card">
-                <div className="ob-feed-thumb" aria-hidden="true" />
-                <div className="ob-feed-card-body">
-                  <h3 className="ob-feed-card-name">{skill.name}</h3>
-                  <p className="ob-feed-card-meta">★ {skill.rating} · {skill.installs}</p>
-                </div>
-                <span className="ob-feed-install">+ Installer</span>
-              </article>
-            ))}
+            {FEED_SKILLS.map(skill => {
+              const istate = feedInstalls[skill.name]
+              return (
+                <article key={skill.name} className={`ob-feed-card${istate === 'installed' ? ' is-owned' : ''}`}>
+                  <div className="ob-feed-thumb" aria-hidden="true" />
+                  <div className="ob-feed-card-body">
+                    <h3 className="ob-feed-card-name">
+                      {skill.name}
+                      {skill.verified && (
+                        <span className="ob-feed-verified" title="Skill vérifié" aria-label="Skill vérifié">
+                          <IconVerified />
+                        </span>
+                      )}
+                    </h3>
+                    <p className="ob-feed-card-meta">★ {skill.rating} · {skill.installs}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`ob-feed-install${istate ? ` is-${istate}` : ''}`}
+                    onClick={() => installSkill(skill.name)}
+                    disabled={istate === 'installing'}
+                    aria-busy={istate === 'installing'}
+                    aria-label={
+                      istate === 'installed' ? `${skill.name} installé`
+                        : istate === 'installing' ? `Installation de ${skill.name} en cours`
+                          : `Installer ${skill.name}`
+                    }
+                  >
+                    <span key={istate ?? 'idle'} className={`ob-feed-install-label${istate === 'installing' ? ' is-anim' : ''}`}>
+                      {istate === 'installed'
+                        ? <><span className="ob-feed-install-ic"><IconInstallCheck /></span>Installé</>
+                        : istate === 'installing'
+                          ? <span className="ob-feed-install-ic"><IconInstallSpinner /></span>
+                          : '+ Installer'}
+                    </span>
+                  </button>
+                </article>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -1610,6 +1745,108 @@ function IconCheck() {
       <path d="M8 12.4l2.6 2.6 5.4-5.8" />
     </svg>
   )
+}
+
+/* Badge « Skill vérifié » — vecteur repris tel quel du proto Figma (node 1329:2299,
+   opération « Subtract ») : un sceau festonné dont la coche est découpée en négatif
+   (fill-rule evenodd) → elle laisse voir la carte au travers, exactement comme dans
+   la maquette. Couleur #EDEDED (le blanc cassé du texte des cartes). */
+function IconVerified() {
+  return (
+    <svg className="ob-verified-svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M13.2816 0.968596C14.8642 -0.322865 17.1365 -0.322865 18.7191 0.968596C19.6135 1.69843 20.7641 2.03797 21.9115 1.91098C23.9346 1.68684 25.8449 2.93187 26.4789 4.86606C26.8392 5.96575 27.6271 6.88735 28.6615 7.4061C30.4866 8.32118 31.4233 10.4017 30.9173 12.3797C30.6299 13.5032 30.8002 14.707 31.391 15.7049C32.4344 17.4673 32.1145 19.7242 30.6175 21.1219C29.7705 21.9127 29.272 23.0204 29.2338 24.1786C29.1664 26.2144 27.685 27.9498 25.68 28.3094C24.5424 28.5134 23.5298 29.1706 22.8763 30.1239C21.7243 31.8044 19.5428 32.4542 17.6644 31.6649C16.6006 31.2178 15.4011 31.2179 14.3373 31.6649C12.4588 32.4543 10.2765 31.8045 9.12438 30.1239C8.47091 29.1706 7.45828 28.5134 6.32067 28.3094C4.3158 27.9497 2.83429 26.2144 2.76696 24.1786C2.72868 23.0204 2.23019 21.9127 1.38317 21.1219C-0.113675 19.7242 -0.433586 17.4672 0.609731 15.7049C1.20055 14.707 1.3708 13.5033 1.08336 12.3797C0.577464 10.4017 1.5141 8.32117 3.33922 7.4061C4.37373 6.88736 5.16151 5.96581 5.52184 4.86606C6.15574 2.93183 8.06612 1.68684 10.0892 1.91098C11.2366 2.03804 12.3872 1.6984 13.2816 0.968596ZM21.973 11.2342C21.4571 10.8407 20.7193 10.9401 20.3256 11.4559L14.7748 18.7264L12.8363 16.5565C12.4039 16.0726 11.6602 16.0304 11.1761 16.4627C10.6926 16.8949 10.6507 17.6379 11.0824 18.1219L13.2709 20.5721C14.125 21.5278 15.6385 21.4688 16.4164 20.45L22.1937 12.8817C22.5875 12.3658 22.4889 11.628 21.973 11.2342Z"
+      />
+    </svg>
+  )
+}
+
+/* Loader d'installation : anneau qui tourne (pathLength=100 → arc en %),
+   trait lumineux violet, écho aux bulles de Frank. Rotation portée par le CSS. */
+function IconInstallSpinner() {
+  return (
+    <svg className="ob-feed-install-spinsvg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle className="ob-spin-track" cx="12" cy="12" r="8.5" pathLength={100} />
+      <circle className="ob-spin-arc" cx="12" cy="12" r="8.5" pathLength={100} />
+    </svg>
+  )
+}
+
+/* Validation : le cercle puis la coche se DESSINENT (stroke-dashoffset animé via
+   CSS, déclenché par .is-installed). pathLength=100 → tracé indépendant de la géométrie. */
+function IconInstallCheck() {
+  return (
+    <svg className="ob-feed-install-checksvg" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle className="ob-check-ring" cx="12" cy="12" r="8.5" pathLength={100} />
+      <path className="ob-check-mark" d="M8 12.4l2.6 2.6 5.4-5.8" pathLength={100} />
+    </svg>
+  )
+}
+
+/* Icônes de la sidebar du feed — vrais vecteurs exportés du Figma (node 1585:2425) :
+   maison, loupe, document, engrenage. Coordonnées dans le repère de la tuile 48×48
+   du proto (d'où le viewBox décalé). Blanches par défaut (fill = currentColor) ; le
+   fill bascule sur le dégradé violet d'origine #feed-ic-grad quand l'item est actif. */
+function IconHome() {
+  return (
+    <svg viewBox="0 0 48 48" fill="currentColor">
+      {/* Cheminée */}
+      <rect x="30.082" y="12.3563" width="2.76754" height="5.53508" rx="1.38377" />
+      {/* Corps + porte */}
+      <path d="M22.8949 14.3625L13.6322 23.0622C13.303 23.3715 13.1162 23.8031 13.1162 24.2548V34.2443C13.1162 35.1479 13.8488 35.8805 14.7524 35.8805H19.0607C19.9643 35.8805 20.6969 35.1479 20.6969 34.2443V28.5522C20.6969 27.6486 21.4294 26.9161 22.333 26.9161H25.6897C26.589 26.9161 27.3198 27.6419 27.3258 28.5413L27.3641 34.2553C27.3702 35.1546 28.1009 35.8805 29.0003 35.8805H33.4399C34.3435 35.8805 35.076 35.1479 35.076 34.2443V24.2628C35.076 23.8064 34.8854 23.3708 34.5502 23.0611L25.1254 14.3533C24.4947 13.7706 23.5208 13.7746 22.8949 14.3625Z" />
+      {/* Toit (un masque dans le Figma → ici un simple trait) */}
+      <path className="ob-navicon-line" fill="none" stroke="currentColor" strokeWidth="1.92524" strokeLinecap="round" strokeLinejoin="round" d="M10.709 22.7647L22.4542 11.8699C23.3296 11.0579 24.6824 11.0562 25.5597 11.8661L37.3014 22.7046" />
+    </svg>
+  )
+}
+function IconSearch() {
+  return (
+    <svg viewBox="4.152 3.672 48 48" fill="currentColor">
+      <path fillRule="evenodd" clipRule="evenodd" d="M16.1068 23.4921C16.789 17.937 21.8447 13.9869 27.3998 14.6689C32.9549 15.351 36.905 20.4067 36.2231 25.9618C35.9455 28.2225 34.9431 30.2171 33.4779 31.7421L40.0219 40.4062C40.6075 41.1815 40.4534 42.2854 39.6781 42.871C38.9029 43.4563 37.7998 43.3023 37.2143 42.5273L30.6508 33.8359C30.6464 33.8301 30.6424 33.8241 30.6381 33.8183C28.9285 34.6614 26.9634 35.0347 24.9301 34.7851C19.3749 34.103 15.4248 29.0473 16.1068 23.4921ZM27.059 17.454C23.0424 16.961 19.3874 19.8174 18.894 23.8339C18.4009 27.8505 21.2563 31.5065 25.2729 31.9999C29.2896 32.4931 32.9465 29.6368 33.4398 25.62C33.9328 21.6033 31.0757 17.9472 27.059 17.454Z" />
+    </svg>
+  )
+}
+function IconDoc() {
+  return (
+    <svg viewBox="4.152 3.672 48 48" fill="currentColor">
+      {/* Feuille arrière */}
+      <path d="M21.3115 15.072V36.552C21.3115 37.0822 21.7413 37.512 22.2715 37.512H37.8715C38.4017 37.512 38.8315 37.0822 38.8315 36.552V15.072C38.8315 14.5418 38.4017 14.112 37.8715 14.112H22.2715C21.7413 14.112 21.3115 14.5418 21.3115 15.072Z" />
+      {/* Feuille intermédiaire */}
+      <path d="M19.3906 16.992V38.472C19.3906 39.0022 19.8204 39.432 20.3506 39.432H35.9506C36.4808 39.432 36.9106 39.0022 36.9106 38.472V16.992C36.9106 16.4618 36.4808 16.032 35.9506 16.032H20.3506C19.8204 16.032 19.3906 16.4618 19.3906 16.992Z" />
+      {/* Traits sombres entre les feuilles (les masques du Figma) */}
+      <path fill="none" stroke="#18143C" strokeWidth="1.2" d="M35.9492 15.4325C36.8108 15.4325 37.5097 16.1306 37.5098 16.9921V38.4726C37.5095 39.3339 36.8106 40.0321 35.9492 40.0321H20.3496C19.4882 40.0321 18.7903 39.3339 18.79 38.4726V16.9921C18.7901 16.1306 19.4881 15.4325 20.3496 15.4325H35.9492Z" />
+      <path fill="none" stroke="#18143C" strokeWidth="1.2" strokeLinejoin="round" d="M28.4717 17.3525C28.8853 17.3525 29.2827 17.5161 29.5752 17.8086L35.1328 23.3672C35.4252 23.6597 35.5898 24.0561 35.5898 24.4697V40.332C35.5898 41.1936 34.8909 41.8925 34.0293 41.8925H18.4297C17.5681 41.8925 16.8701 41.1936 16.8701 40.332V18.9121C16.8701 18.0505 17.5682 17.3525 18.4297 17.3525H28.4717Z" />
+      {/* Feuille avant + coin plié */}
+      <path fillRule="evenodd" clipRule="evenodd" d="M18.4317 17.9519C17.9015 17.9519 17.4717 18.3817 17.4717 18.9119V40.3319C17.4717 40.8621 17.9015 41.2919 18.4317 41.2919H34.0317C34.5619 41.2919 34.9917 40.8621 34.9917 40.3319V24.0719H29.8317C29.3015 24.0719 28.8717 23.6421 28.8717 23.1119V17.9519H18.4317Z" />
+      <path fillOpacity="0.5" d="M34.9917 24.0719H29.8317C29.3015 24.0719 28.8717 23.6421 28.8717 23.1119V17.9519L34.9917 24.0719Z" />
+    </svg>
+  )
+}
+function IconGear() {
+  return (
+    <svg viewBox="4.152 3.672 48 48" fill="currentColor">
+      <path fillRule="evenodd" clipRule="evenodd" d="M21.9218 15.7423C23.3045 14.944 25.0729 15.4172 25.8713 16.7999C26.0082 17.0369 26.2798 17.1598 26.5508 17.1214C26.6978 17.1005 26.8453 17.0827 26.9925 17.0682C27.3478 17.0329 27.6538 16.7913 27.7467 16.4467C28.16 14.9044 29.7455 13.9891 31.2878 14.4023L32.3056 14.675C33.8479 15.0882 34.7633 16.6738 34.3501 18.2161L34.3018 18.3961C34.2129 18.7279 34.3421 19.0779 34.6119 19.2906C34.6294 19.3044 34.6477 19.3181 34.6651 19.3321C34.9417 19.5528 35.3255 19.5957 35.632 19.4188L35.8341 19.3021C37.2169 18.5038 38.9858 18.9778 39.7841 20.3605L40.311 21.2731C41.1091 22.6558 40.6348 24.424 39.2521 25.2222L38.9705 25.3848C38.6701 25.5584 38.5149 25.902 38.5588 26.2461C38.5652 26.2958 38.5709 26.3462 38.5766 26.396C38.6164 26.7464 38.8571 27.0465 39.1978 27.1379L39.5553 27.2337C41.0976 27.6469 42.013 29.2325 41.5997 30.7748L41.327 31.7926C40.9135 33.3346 39.3281 34.2502 37.7859 33.837L37.3732 33.7257C37.0366 33.6356 36.6817 33.7706 36.4693 34.0469C36.4666 34.0504 36.4635 34.0539 36.4608 34.0575C36.2487 34.3326 36.2112 34.7092 36.3849 35.0101L36.6525 35.4736C37.4505 36.8563 36.9763 38.6245 35.5936 39.4227L34.6811 39.9496C33.2985 40.7476 31.53 40.2744 30.7316 38.892L30.5036 38.4971C30.3268 38.1913 29.9743 38.036 29.625 38.0887C29.6079 38.0912 29.5905 38.0945 29.5734 38.097C29.2332 38.1467 28.9456 38.3849 28.8568 38.7171L28.7692 39.0439C28.3558 40.5859 26.7703 41.5015 25.2282 41.0884L24.2103 40.8156C22.6682 40.4024 21.7529 38.8167 22.1659 37.2746L22.2049 37.1292C22.2969 36.7839 22.1522 36.4215 21.862 36.213C21.7786 36.1531 21.6956 36.0917 21.6138 36.0293C21.338 35.8188 20.9626 35.7817 20.6621 35.9552L20.5784 36.0035C19.1958 36.8015 17.4273 36.3284 16.6289 34.9459L16.1021 34.0334C15.3038 32.6507 15.7779 30.8818 17.1605 30.0834C17.4668 29.9065 17.6262 29.5503 17.5721 29.2007C17.5583 29.1117 17.5461 29.0217 17.5346 28.9326C17.4931 28.612 17.2702 28.3399 16.958 28.2562C15.4162 27.8429 14.5012 26.2579 14.9141 24.716L15.1868 23.6982C15.6001 22.1559 17.1856 21.2405 18.7279 21.6537C19.0112 21.7296 19.3099 21.614 19.4826 21.377C19.6128 21.1981 19.7496 21.0223 19.8916 20.851C20.0398 20.6721 20.0664 20.4196 19.9503 20.2184C19.1521 18.8357 19.6267 17.0676 21.0092 16.2692L21.9218 15.7423ZM26.0601 24.1581C24.1528 25.2594 23.4986 27.6981 24.5998 29.6054C25.7009 31.5125 28.1401 32.1654 30.0474 31.0643C31.9546 29.9631 32.6079 27.5248 31.5068 25.6176C30.4057 23.7103 27.9674 23.057 26.0601 24.1581Z" />
+    </svg>
+  )
+}
+function IconPen() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  )
+}
+function FeedNavIcon({ kind }: { kind: string }) {
+  switch (kind) {
+    case 'home': return <IconHome />
+    case 'search': return <IconSearch />
+    case 'doc': return <IconDoc />
+    case 'gear': return <IconGear />
+    default: return null
+  }
 }
 
 export default function App() {

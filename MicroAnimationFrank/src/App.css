@@ -219,20 +219,6 @@
   will-change: opacity, transform;
 }
 
-/* Éclat de lumière en diagonale (reflet glass) repris du bouton Figma */
-.ob-btn::before {
-  content: '';
-  position: absolute;
-  left: -14px;
-  top: -12px;
-  width: 22px;
-  height: 64px;
-  background: rgba(255, 255, 255, 0.48);
-  filter: blur(10px);
-  transform: rotate(31.35deg);
-  pointer-events: none;
-}
-
 /* Reflet glass qui balaie le bouton au survol */
 .ob-btn::after {
   content: '';
@@ -350,6 +336,11 @@
   font-variation-settings: 'opsz' 40, 'wght' 600;
 }
 
+/* Porte-définitions du dégradé violet : hors flux, taille nulle (sinon le <svg>
+   réserve sa taille intrinsèque et repousse le logo + la nav). Le gradient reste
+   référençable par url(#feed-ic-grad) même sans être rendu. */
+.ob-feed-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+
 .ob-feed-nav { display: flex; flex-direction: column; gap: 14px; }
 .ob-feed-navitem {
   display: flex;
@@ -360,21 +351,39 @@
   color: rgba(246, 246, 255, 0.6);
 }
 .ob-feed-navitem.is-active { color: #f6f6ff; }
-.ob-feed-navdot {
+/* Tuile « glass » de l'icône (Figma node 1585:2425) : fond translucide,
+   arête lumineuse violette interne (haut plus clair) et léger glow externe.
+   Le glyphe (vrai vecteur Figma) est blanc par défaut ; il passe au dégradé
+   violet du proto quand l'item est actif. */
+.ob-feed-navicon {
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(172, 165, 245, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  color: #f6f6ff;
+  box-shadow:
+    0 1px 4px rgba(172, 165, 245, 0.24),
+    inset 0 0 10px rgba(0, 0, 0, 0.22),
+    inset 0 1px 2.5px rgba(172, 165, 245, 0.3),
+    inset 0 -1px 2.5px rgba(172, 165, 245, 0.1);
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
-.ob-feed-navitem.is-active .ob-feed-navdot {
-  background: radial-gradient(120% 120% at 30% 20%, rgba(124, 114, 235, 0.5), rgba(94, 81, 241, 0.3));
-  border-color: rgba(124, 114, 235, 0.6);
-  box-shadow: 0 0 16px rgba(94, 81, 241, 0.4);
+.ob-feed-navicon svg { width: 100%; height: 100%; display: block; fill: currentColor; }
+.ob-feed-navitem.is-active .ob-feed-navicon {
+  box-shadow:
+    0 0 16px rgba(94, 81, 241, 0.4),
+    inset 0 1px 2.5px rgba(172, 165, 245, 0.45),
+    inset 0 -1px 2.5px rgba(172, 165, 245, 0.12);
 }
+/* Actif : remplissages ET traits du glyphe passent au dégradé violet. */
+.ob-feed-navitem.is-active .ob-feed-navicon svg { fill: url(#feed-ic-grad); }
+.ob-feed-navitem.is-active .ob-feed-navicon svg .ob-navicon-line { stroke: url(#feed-ic-grad); }
 
-.ob-feed-user { margin-top: auto; display: flex; align-items: center; gap: 14px; }
+.ob-feed-user { margin-top: auto; display: flex; align-items: center; gap: 14px; position: relative; }
 .ob-feed-avatar {
   width: 52px;
   height: 52px;
@@ -400,6 +409,128 @@
   letter-spacing: 0.08em;
   color: rgba(246, 246, 255, 0.45);
 }
+
+/* ─── Sélecteur de mascotte (clic sur l'avatar du feed) ─────────────────── */
+.ob-feed-avatar-btn {
+  position: relative;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 0;
+  transition: transform 0.18s ease;
+}
+.ob-feed-avatar-btn:hover { transform: scale(1.06); }
+.ob-feed-avatar-btn:focus-visible {
+  outline: 2px solid rgba(154, 148, 229, 0.9);
+  outline-offset: 3px;
+}
+
+/* Petit badge crayon « modifiable » en bas à droite de l'avatar */
+.ob-feed-avatar-edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f6f6ff;
+  border-radius: 50%;
+  background: linear-gradient(150deg, #7c72eb, #4a40be);
+  border: 1.5px solid rgba(11, 9, 27, 0.85);
+  box-shadow: 0 0 8px rgba(94, 81, 241, 0.55);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.ob-feed-avatar-edit svg { width: 11px; height: 11px; display: block; }
+.ob-feed-avatar-btn:hover .ob-feed-avatar-edit {
+  transform: scale(1.12);
+  box-shadow: 0 0 12px rgba(94, 81, 241, 0.85);
+}
+
+.ob-mascot-overlay { position: fixed; inset: 0; z-index: 70; }
+
+.ob-mascot-pop {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 14px);
+  z-index: 71;
+  width: 196px;
+  box-sizing: border-box;
+  padding: 13px 13px 12px;
+  border-radius: 18px;
+  background: rgba(28, 24, 54, 0.74);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 22px rgba(94, 81, 241, 0.22);
+  transform-origin: bottom left;
+  animation: mascotPopIn 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+/* Petite flèche pointant vers l'avatar */
+.ob-mascot-pop::after {
+  content: "";
+  position: absolute;
+  left: 21px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  background: rgba(28, 24, 54, 0.74);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  transform: rotate(45deg);
+}
+@keyframes mascotPopIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ob-mascot-pop-title {
+  margin: 0 0 10px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(246, 246, 255, 0.5);
+}
+.ob-mascot-pop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ob-mascot-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 2px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.ob-mascot-choice:hover { background: rgba(255, 255, 255, 0.06); }
+.ob-mascot-choice img {
+  width: 46px;
+  height: 46px;
+  box-sizing: border-box;
+  padding: 5px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: radial-gradient(circle at 50% 35%, rgba(124, 114, 235, 0.3), rgba(11, 9, 27, 0.6));
+  border: 1.5px solid rgba(172, 165, 245, 0.25);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ob-mascot-choice span {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  color: rgba(246, 246, 255, 0.55);
+  transition: color 0.15s ease;
+}
+.ob-mascot-choice.is-active img {
+  border-color: rgba(172, 165, 245, 0.9);
+  box-shadow: 0 0 12px rgba(94, 81, 241, 0.6);
+}
+.ob-mascot-choice.is-active span { color: #f6f6ff; }
 
 /* Zone principale */
 .ob-feed-main {
@@ -485,6 +616,9 @@
 }
 .ob-feed-card-body { padding: 14px 4px 0; }
 .ob-feed-card-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin: 0 0 4px;
   font-family: var(--font-display);
   font-size: 18px;
@@ -497,18 +631,73 @@
   font-size: 13px;
   color: rgba(246, 246, 255, 0.45);
 }
+
+/* Badge « vérifié » sur les cartes du feed (3e différenciateur « Skills vérifiés ») :
+   sceau festonné repris du proto Figma (node 1329:2299), posé à côté du nom comme un
+   compte certifié. Rempli en #EDEDED ; la coche, découpée en négatif, laisse voir la
+   carte au travers — exactement comme dans la maquette. */
+.ob-feed-verified {
+  display: inline-flex;
+  flex: none;            /* ne rétrécit pas même si le nom est long */
+  width: 19px;
+  height: 19px;
+}
+.ob-verified-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ob-verified-svg path { fill: #ededed; }
 .ob-feed-install {
+  position: relative;
+  overflow: hidden;
   margin-top: 14px;
   padding: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 100px;
-  text-align: center;
   font-family: var(--font-ui);
   font-size: 15px;
   font-weight: 500;
+  line-height: 1;
   color: #f6f6ff;
   background: radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.3), rgba(94, 81, 241, 0.2));
   border: 1px solid rgba(124, 114, 235, 0.4);
+  -webkit-appearance: none;
+  appearance: none;
 }
+.ob-feed-install-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ob-feed-install-ic { display: inline-flex; width: 18px; height: 18px; }
+.ob-feed-install-ic svg { width: 100%; height: 100%; }
+/* Apparition douce du contenu quand l'état change (idle → loader). */
+.ob-feed-install-label.is-anim { animation: ob-install-label-in 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Loader : anneau SVG qui tourne, arc lumineux + glow (écho aux bulles de Frank). */
+.ob-feed-install-spinsvg {
+  width: 100%;
+  height: 100%;
+  animation: ob-install-spin 0.85s linear infinite;
+  filter: drop-shadow(0 0 5px rgba(172, 165, 245, 0.6));
+}
+.ob-spin-track { stroke: rgba(255, 255, 255, 0.18); stroke-width: 2.4; }
+.ob-spin-arc {
+  stroke: var(--violet-glow);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 70 30;
+}
+
+/* Validation : le cercle puis la coche se dessinent (stroke-dashoffset → 0). */
+.ob-feed-install-checksvg { width: 100%; height: 100%; filter: drop-shadow(0 0 5px rgba(172, 165, 245, 0.65)); }
+.ob-check-ring,
+.ob-check-mark { stroke-dasharray: 100; stroke-dashoffset: 100; }
 
 /* Interactions au survol + scroll — pour pousser le côté « vraie app ».
    Le feed ne capte les clics/survols/scroll QUE lorsqu'il est à l'écran
@@ -525,10 +714,90 @@
 }
 .ob-feed-card:hover .ob-feed-thumb { border-color: rgba(124, 114, 235, 0.3); }
 
-.ob-feed-install { transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+.ob-feed-install { transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease; }
 .ob-feed-install:hover {
   border-color: rgba(124, 114, 235, 0.75);
   box-shadow: 0 0 16px rgba(94, 81, 241, 0.45);
+}
+/* Reflet glass qui balaie le bouton au survol — même signature que .ob-btn. */
+.ob-feed-install::after {
+  content: '';
+  position: absolute;
+  top: -25%;
+  left: -20%;
+  z-index: 2;
+  width: 30px;
+  height: 150%;
+  background: rgba(255, 255, 255, 0.16);
+  filter: blur(9px);
+  transform: rotate(28deg);
+  opacity: 0;
+  pointer-events: none;
+}
+.ob-feed-install:hover::after { animation: ob-sheen-sm 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+/* Feedback tactile immédiat au clic. */
+.ob-feed-install:active:not(:disabled) { transform: scale(0.96); }
+.ob-feed-install:disabled { cursor: pointer; }
+
+/* Installation en cours : loader rond qui tourne (écho aux bulles de Frank). */
+.ob-feed-install.is-installing { border-color: rgba(124, 114, 235, 0.7); }
+
+/* Installé : fond violet plein, icône validée tracée + bloom de glow (premium). */
+.ob-feed-install.is-installed {
+  background: radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.55), rgba(94, 81, 241, 0.45));
+  border-color: rgba(124, 114, 235, 0.85);
+  box-shadow: 0 0 18px rgba(94, 81, 241, 0.45);
+  animation: ob-install-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
+    ob-install-glow 0.75s ease-out;
+}
+.ob-feed-install.is-installed .ob-check-ring {
+  animation: ob-install-draw 0.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+.ob-feed-install.is-installed .ob-check-mark {
+  animation: ob-install-draw 0.3s cubic-bezier(0.65, 0, 0.35, 1) 0.32s forwards;
+}
+/* « Installé » n'a pas de jambe descendante → son centre optique est ~1px plus haut
+   que le centre de boîte aligné par flex. On remonte le check d'1px pour les recaler.
+   Scopé à l'état installé : le loader (seul) doit rester centré. */
+.ob-feed-install.is-installed .ob-feed-install-ic {
+  position: relative;
+  top: -1px;
+}
+/* Carte d'un Skill installé : état « possédé » subtil. */
+.ob-feed-card.is-owned { border-color: rgba(124, 114, 235, 0.35); }
+
+@keyframes ob-install-spin { to { transform: rotate(360deg); } }
+@keyframes ob-install-label-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes ob-install-pop {
+  0% { transform: scale(0.98); }
+  55% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+@keyframes ob-install-glow {
+  0% { box-shadow: 0 0 0 0 rgba(124, 114, 235, 0); }
+  35% { box-shadow: 0 0 26px 4px rgba(124, 114, 235, 0.6); }
+  100% { box-shadow: 0 0 18px rgba(94, 81, 241, 0.45); }
+}
+@keyframes ob-install-draw { to { stroke-dashoffset: 0; } }
+/* left en % (relatif à la largeur du bouton) → la traversée va toujours jusqu'au bout,
+   quelle que soit la largeur de la carte. */
+@keyframes ob-sheen-sm {
+  0% { opacity: 0; left: -20%; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; left: 120%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-feed-install-label.is-anim,
+  .ob-feed-install.is-installed,
+  .ob-feed-install:hover::after { animation: none; }
+  .ob-feed-install.is-installed .ob-check-ring,
+  .ob-feed-install.is-installed .ob-check-mark { animation: none; stroke-dashoffset: 0; }
+  .ob-feed-install-spinsvg { animation-duration: 1.6s; }
+  .ob-feed-install:active:not(:disabled) { transform: none; }
 }
 
 .ob-feed-chip { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
@@ -536,7 +805,7 @@
 
 .ob-feed-navitem { transition: color 0.2s ease; }
 .ob-feed-navitem:hover { color: #f6f6ff; }
-.ob-feed-navitem:hover .ob-feed-navdot { border-color: rgba(124, 114, 235, 0.5); }
+.ob-feed-navitem:hover .ob-feed-navicon { color: #c9c4fa; }
 
 /* Scrollbar masquée par défaut — visible seulement dans le feed actif */
 .ob-feed-main { scrollbar-width: none; }
@@ -562,10 +831,6 @@
   border-color: rgba(154, 148, 229, 0.7);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-}
-
-.ob-btn--secondary::before {
-  opacity: 0.45;
 }
 
 /* ─── Onboarding background ──────────────────────────────────────────────── */
@@ -676,7 +941,7 @@
   display: inline-flex;
   width: 32px;
   height: 32px;
-  color: #aca5f5;
+  color: #f6f6ff;
 }
 
 .ob-why-icon svg {
@@ -812,7 +1077,10 @@
   box-shadow:
     inset 0 1px 2px rgba(255, 255, 255, 0.5),
     0 0 12px rgba(124, 114, 235, 0.4);
-  will-change: transform, opacity;
+  /* Pas de will-change : il promeut chaque bulle sur un layer GPU isolé qui se
+     peint AU-DESSUS de Frank malgré le z-index (Frank n'est plus promu, cf. le
+     will-change retiré sur .ob-frank plus haut). Sans la promotion, les bulles
+     suivent l'empilement normal (.ob-trail z 0) et restent DERRIÈRE lui (z 1). */
 }
 
 /* ─── Écran 4 — « Quelles IA tu utilises ? » ────────────────────────────── */
