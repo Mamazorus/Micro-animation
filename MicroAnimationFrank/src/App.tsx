@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import gsap from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import OnboardingGrid from './OnboardingGrid'
@@ -230,11 +230,11 @@ const TRAIL_SIZE_RATIO_MIN = 0.03
 const TRAIL_SIZE_RATIO_MAX = 0.075
 const TRAIL_SIZE_MIN = 5, TRAIL_SIZE_MAX = 72
 
-const WHY_CARDS = [
+const WHY_CARDS: { key: string; Icon: () => React.JSX.Element; title: string; text: React.ReactNode }[] = [
   { key: 'feed', Icon: IconSliders, title: 'Feed personnalisé',
     text: "Construit dès l'inscription selon ton domaine + tes IA. Plus tu installes, plus c'est précis." },
   { key: 'install', Icon: IconPlus, title: 'Installation en 1 clic',
-    text: "Pas de terminal, pas de fichier à copier. Frank s'occupe de tout." },
+    text: <>Pas de terminal, pas de fichier à copier. Frank s'occupe de tout.<br /></> },
   { key: 'verif', Icon: IconCheck, title: 'Skills vérifiés',
     text: "Chaque skill passe par 2 niveaux de vérification. Si quelque chose cloche, tu le vois avant d'installer." },
 ]
@@ -1287,9 +1287,11 @@ function Onboarding() {
         <div ref={whyCardsRef} className="ob-why-cards">
           {WHY_CARDS.map(({ key, Icon, title, text }) => (
             <article key={key} className="ob-why-card">
-              <span className="ob-why-icon" aria-hidden="true"><Icon /></span>
-              <h2>{title}</h2>
-              <p>{text}</p>
+              <div className="ob-why-card-body">
+                <span className="ob-why-icon" aria-hidden="true"><Icon /></span>
+                <h2>{title}</h2>
+                <p>{text}</p>
+              </div>
               <div className="ob-why-card-media" aria-hidden="true" />
             </article>
           ))}
