@@ -1403,7 +1403,9 @@ function Onboarding() {
     settleRef.current?.(targetIdx)
   }
   const goToPresent = () => jumpTo('present')
-  const goToFeed = () => jumpTo('feed')
+  // Raccourci de dév « Feed → » masqué (cf. rendu plus bas). Décommenter avec le
+  // bouton pour réactiver le saut direct vers le feed.
+  // const goToFeed = () => jumpTo('feed')
 
   const goPrev = () => {
     const i = idxRef.current
@@ -1445,9 +1447,11 @@ function Onboarding() {
 
   return (
     <div ref={rootRef} className={`ob-root onboarding-bg is-${step}`}>
-      {step !== 'feed' && (
+      {/* Raccourci de dév « Feed → » (saut direct au feed) masqué pour la démo.
+          Décommenter ce bloc + goToFeed plus haut pour le réactiver. */}
+      {/* {step !== 'feed' && (
         <button className="nav-btn" onClick={goToFeed}>Feed →</button>
-      )}
+      )} */}
 
       {/* Décor océanique : masqué pendant le gros plan d'intro, révélé en fondu
           pendant le dézoom (cf. effet d'intro). La base sombre reste, elle, visible. */}
