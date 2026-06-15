@@ -134,8 +134,7 @@
   pointer-events: none;
 }
 
-.ob-screen .ob-btn,
-.ob-screen .ob-skip {
+.ob-screen .ob-btn {
   pointer-events: auto;
 }
 
@@ -216,7 +215,8 @@
   letter-spacing: -0.04em;
   white-space: nowrap;
   cursor: pointer;
-  will-change: opacity, transform;
+  /* will-change retiré : promouvait le bouton sur un layer GPU isolé, ce qui
+     empêchait son backdrop-filter de voir les pixels derrière lui en production. */
 }
 
 /* Éclat de lumière en diagonale (reflet glass) repris du bouton Figma */
@@ -265,9 +265,10 @@
 }
 
 .ob-skip {
-  position: absolute;
+  position: fixed;
   top: 32px;
   left: 32px;
+  z-index: 100;
   border: none;
   background: none;
   color: rgba(246, 246, 255, 0.3);
@@ -277,10 +278,21 @@
   letter-spacing: -0.02em;
   cursor: pointer;
   transition: color 0.2s ease;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .ob-skip:hover {
   color: rgba(246, 246, 255, 0.55);
+}
+
+.is-skill .ob-skip,
+.is-why .ob-skip,
+.is-ia .ob-skip,
+.is-specialite .ob-skip,
+.is-precise .ob-skip {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .ob-skill-content {

@@ -314,31 +314,27 @@ function Onboarding() {
   const frankVideoRef = useRef<HTMLVideoElement>(null)
   const frankSkillRef = useRef<HTMLVideoElement>(null)
   const bgDecoRef = useRef<HTMLDivElement>(null)
+  const globalSkipRef = useRef<HTMLButtonElement>(null)
   // Écran 1 — accueil
   const titleRef = useRef<HTMLHeadingElement>(null)
   const subRef   = useRef<HTMLParagraphElement>(null)
   const btnRef   = useRef<HTMLButtonElement>(null)
   // Écran 2 — « Un clic suffit »
-  const skipRef  = useRef<HTMLButtonElement>(null)
   const skillRef = useRef<HTMLDivElement>(null)
   const navRef   = useRef<HTMLDivElement>(null)
   // Écran 3 — « Pourquoi Frank ? »
-  const whySkipRef  = useRef<HTMLButtonElement>(null)
   const whyHeadRef  = useRef<HTMLDivElement>(null)
   const whyCardsRef = useRef<HTMLDivElement>(null)
   const whyNavRef   = useRef<HTMLDivElement>(null)
   // Écran 4 — « Quelles IA tu utilises ? »
-  const iaSkipRef = useRef<HTMLButtonElement>(null)
   const iaHeadRef = useRef<HTMLDivElement>(null)
   const iaGridRef = useRef<HTMLDivElement>(null)
   const iaNavRef  = useRef<HTMLDivElement>(null)
   // Écran 5 — « Quelle est ta spécialité ? »
-  const spSkipRef = useRef<HTMLButtonElement>(null)
   const spHeadRef = useRef<HTMLDivElement>(null)
   const spGridRef = useRef<HTMLDivElement>(null)
   const spNavRef  = useRef<HTMLDivElement>(null)
   // Écran 6 — « Plus précisément ? »
-  const prSkipRef   = useRef<HTMLButtonElement>(null)
   const prHeadRef   = useRef<HTMLDivElement>(null)
   const prGroupsRef = useRef<HTMLDivElement>(null)
   const prNavRef    = useRef<HTMLDivElement>(null)
@@ -441,14 +437,14 @@ function Onboarding() {
     frank.style.setProperty('--ss', String(FRANK_SS))
 
     const welcomeEls = [titleRef.current, subRef.current, btnRef.current]
-    const skillEls   = [skipRef.current, skillRef.current, navRef.current]
-    const whyEls     = [whySkipRef.current, whyHeadRef.current, whyNavRef.current]
+    const skillEls   = [skillRef.current, navRef.current]
+    const whyEls     = [whyHeadRef.current, whyNavRef.current]
     const whyCards   = whyCardsRef.current ? Array.from(whyCardsRef.current.children) : []
-    const iaEls      = [iaSkipRef.current, iaNavRef.current]
+    const iaEls      = [iaNavRef.current]
     const iaChips    = iaGridRef.current ? Array.from(iaGridRef.current.children) : []
-    const spEls      = [spSkipRef.current, spNavRef.current]
+    const spEls      = [spNavRef.current]
     const spCards    = spGridRef.current ? Array.from(spGridRef.current.children) : []
-    const prEls      = [prSkipRef.current, prNavRef.current]
+    const prEls      = [prNavRef.current]
     const prLabels   = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-pr-label')) : []
     const prChips    = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-ai-chip')) : []
     const presFormEls = presFormRef.current ? Array.from(presFormRef.current.children) : []
@@ -471,13 +467,13 @@ function Onboarding() {
 
     gsap.set(frank, { transformOrigin: '50% 51%' })
     gsap.set(welcomeEls, { autoAlpha: 0, y: 22 })
-    gsap.set(skillEls,   { autoAlpha: 0, y: 24 })
+    gsap.set([...skillEls, globalSkipRef.current], { autoAlpha: 0, y: 24 })
     gsap.set([...whyEls, ...whyCards], { autoAlpha: 0, y: 24 })
-    gsap.set([iaHeadRef.current, ...iaEls], { autoAlpha: 0, y: 24 })
+    gsap.set([iaHeadRef.current, iaNavRef.current], { autoAlpha: 0, y: 24 })
     gsap.set(iaChips, { autoAlpha: 0, y: 20, scale: 0.9 })
-    gsap.set([spHeadRef.current, ...spEls], { autoAlpha: 0, y: 24 })
+    gsap.set([spHeadRef.current, spNavRef.current], { autoAlpha: 0, y: 24 })
     gsap.set(spCards, { autoAlpha: 0, y: 20, scale: 0.9 })
-    gsap.set([prHeadRef.current, ...prEls], { autoAlpha: 0, y: 24 })
+    gsap.set([prHeadRef.current, prNavRef.current], { autoAlpha: 0, y: 24 })
     gsap.set(prLabels, { autoAlpha: 0, y: 16 })
     gsap.set(prChips, { autoAlpha: 0, y: 20, scale: 0.9 })
     gsap.set([presHeadRef.current, presBackRef.current], { autoAlpha: 0, y: 24 })
@@ -538,7 +534,7 @@ function Onboarding() {
         motionPath: { path: [{ x: 0, y: 0.82 * h }, { x: 0, y: FRANK.skill.y * h }], autoRotate: false },
         scale: FRANK.skill.scale, rotation: FRANK.skill.rot }, 0.92)
       t.to(frank, { opacity: FRANK.skill.opacity, duration: 0.5, ease: 'power2.out' }, 0.95)
-      t.to([skipRef.current, skillRef.current, navRef.current],
+      t.to([globalSkipRef.current, skillRef.current, navRef.current],
         { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.1, ease: 'power2.out' }, 1.3)
       return t
     }
@@ -550,7 +546,7 @@ function Onboarding() {
       const h = window.innerHeight, w = window.innerWidth
       const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
 
-      t.to([navRef.current, skillRef.current, skipRef.current],
+      t.to([navRef.current, skillRef.current],
         { autoAlpha: 0, y: 16, duration: 0.34, stagger: 0.06, ease: 'power2.in' }, 0)
 
       // composition-2.webm reste visible jusqu'à 0.74 → pas d'inclinaison sur la plongée
@@ -579,7 +575,7 @@ function Onboarding() {
 
       // Les cards d'abord (pour voir Frank flouté en passant derrière), puis en-tête + nav
       t.to(whyCards, { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.1, ease: 'power2.out' }, 0.5)
-      t.to([whySkipRef.current, whyHeadRef.current, whyNavRef.current],
+      t.to([whyHeadRef.current, whyNavRef.current],
         { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 0.72)
 
       return t
@@ -593,7 +589,7 @@ function Onboarding() {
       const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
 
       // Sortie de l'écran « Pourquoi Frank ? »
-      t.to([whyNavRef.current, whyHeadRef.current, whySkipRef.current],
+      t.to([whyNavRef.current, whyHeadRef.current],
         { autoAlpha: 0, y: 16, duration: 0.34, stagger: 0.06, ease: 'power2.in' }, 0)
       t.to(whyCards, { autoAlpha: 0, y: 16, duration: 0.32, stagger: 0.05, ease: 'power2.in' }, 0)
 
@@ -626,8 +622,8 @@ function Onboarding() {
       // Entrée de l'écran « Quelles IA »
       t.to(iaHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.0)
       t.to(iaChips, { autoAlpha: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.05, ease: 'back.out(1.5)' }, 1.08)
-      t.to([iaSkipRef.current, iaNavRef.current],
-        { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 1.18)
+      t.to(iaNavRef.current,
+        { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.18)
 
       return t
     }
@@ -640,8 +636,8 @@ function Onboarding() {
       const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
 
       // Sortie de l'écran IA
-      t.to([iaNavRef.current, iaSkipRef.current],
-        { autoAlpha: 0, y: 16, duration: 0.32, stagger: 0.06, ease: 'power2.in' }, 0)
+      t.to(iaNavRef.current,
+        { autoAlpha: 0, y: 16, duration: 0.32, ease: 'power2.in' }, 0)
       t.to(iaHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
       t.to(iaChips, { autoAlpha: 0, y: 40, scale: 0.88, duration: 0.36, stagger: 0.03, ease: 'power2.in' }, 0)
 
@@ -659,8 +655,8 @@ function Onboarding() {
       // Entrée de l'écran spécialité
       t.to(spHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.44)
       t.to(spCards, { autoAlpha: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.05, ease: 'back.out(1.5)' }, 0.52)
-      t.to([spSkipRef.current, spNavRef.current],
-        { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 0.68)
+      t.to(spNavRef.current,
+        { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.68)
 
       return t
     }
@@ -673,8 +669,8 @@ function Onboarding() {
       const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
 
       // Sortie de l'écran spécialité
-      t.to([spNavRef.current, spSkipRef.current],
-        { autoAlpha: 0, y: 16, duration: 0.32, stagger: 0.06, ease: 'power2.in' }, 0)
+      t.to(spNavRef.current,
+        { autoAlpha: 0, y: 16, duration: 0.32, ease: 'power2.in' }, 0)
       t.to(spHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
       t.to(spCards, { autoAlpha: 0, y: 24, scale: 0.9, duration: 0.4, stagger: 0.04, ease: 'power2.in' }, 0)
 
@@ -707,8 +703,8 @@ function Onboarding() {
         t.to(chips, { autoAlpha: 1, y: 0, scale: 1, duration: 0.42, stagger: CHIP_STEP, ease: 'back.out(1.4)' }, groupStart)
         chipIdx += chips.length
       })
-      t.to([prSkipRef.current, prNavRef.current],
-        { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 1.0)
+      t.to(prNavRef.current,
+        { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.0)
 
       return t
     }
@@ -721,8 +717,8 @@ function Onboarding() {
       const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
 
       // Sortie de « Plus précisément ? »
-      t.to([prNavRef.current, prSkipRef.current],
-        { autoAlpha: 0, y: 16, duration: 0.3, stagger: 0.06, ease: 'power2.in' }, 0)
+      t.to([prNavRef.current, globalSkipRef.current],
+        { autoAlpha: 0, y: 16, duration: 0.3, ease: 'power2.in' }, 0)
       t.to(prHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
       // Nœuds re-interrogés à la construction : les groupes dépendent du domaine
       // (PRECISE_BY_DOMAIN) et sont remplacés par React après le montage → on ne
@@ -1222,6 +1218,9 @@ function Onboarding() {
         <button className="nav-btn" onClick={goToFeed}>Feed →</button>
       )}
 
+      {/* Bouton Passer — fixe, toujours au même endroit, visible sur les écrans d'onboarding */}
+      <button ref={globalSkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
+
       {/* Décor océanique : masqué pendant le gros plan d'intro, révélé en fondu
           pendant le dézoom (cf. effet d'intro). La base sombre reste, elle, visible. */}
       <div ref={bgDecoRef} className="ob-bg-deco" aria-hidden="true" />
@@ -1277,7 +1276,6 @@ function Onboarding() {
 
       {/* Écran 2 — Un clic suffit */}
       <div className="ob-screen ob-screen--skill">
-        <button ref={skipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={skillRef} className="ob-skill-content">
           <h1 className="ob-title ob-title--lg">Un clic suffit.</h1>
           <p className="ob-subtitle ob-subtitle--skill">
@@ -1290,7 +1288,6 @@ function Onboarding() {
 
       {/* Écran 3 — Pourquoi Frank ? */}
       <div className="ob-screen ob-screen--why">
-        <button ref={whySkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={whyHeadRef} className="ob-why-head">
           <h1 className="ob-title ob-title--lg">Pourquoi <em>Frank</em>&nbsp;?</h1>
           <p className="ob-subtitle">Trois choses qui changent tout.</p>
@@ -1312,7 +1309,6 @@ function Onboarding() {
 
       {/* Écran 4 — Quelles IA tu utilises ? */}
       <div className="ob-screen ob-screen--ia">
-        <button ref={iaSkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={iaHeadRef} className="ob-ia-head">
           <h1 className="ob-title ob-title--lg">Quelles IA<br />tu utilises&nbsp;?</h1>
           <p className="ob-subtitle">Choix multiple. On adaptera tes Skills à chacune.</p>
@@ -1339,7 +1335,6 @@ function Onboarding() {
 
       {/* Écran 5 — Quelle est ta spécialité ? (cartes = composant partagé Specialties) */}
       <div className="ob-screen ob-screen--ia">
-        <button ref={spSkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={spHeadRef} className="ob-ia-head">
           <h1 className="ob-title ob-title--lg">Quelle est ta<br />spécialité&nbsp;?</h1>
           <p className="ob-subtitle">Choisis tes domaines (plusieurs possibles).</p>
@@ -1366,7 +1361,6 @@ function Onboarding() {
 
       {/* Écran 6 — Plus précisément ? (tags multi-select groupés ; chips = .ob-ai-chip--tag) */}
       <div className="ob-screen ob-screen--ia">
-        <button ref={prSkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={prHeadRef} className="ob-ia-head">
           <h1 className="ob-title ob-title--lg">Plus précisément&nbsp;?</h1>
           <p className="ob-subtitle">Choix multiple. On affinera tes Skills.</p>
