@@ -127,41 +127,83 @@ const PLANS = [
     feats: ['Installation sans limites', 'Éditeur de Skills', "Espaces d'équipe partagés", 'Crée et partage tes Skills privés', 'Accès prioritaire forte affluence'] },
 ]
 
-/* Skills vérifiés — c'est le 3e différenciateur de Frank (« 2 niveaux de
-   vérification »). Pour le rendre tangible dans le feed, on appose un badge
-   « vérifié » sur une partie des Skills, tirée au hasard au chargement du module
-   (donc figée pour la session : aucun recalcul ni clignotement au re-render).
-   Tirage à effectif fixe (et non un coup de dé par carte) → il y a toujours un
-   mélange vérifié / non vérifié visible, jamais zéro ni la totalité. */
-const pickVerified = <T,>(skills: T[], ratio = 0.5): (T & { verified: boolean })[] => {
-  const count = Math.round(skills.length * ratio)
-  const chosen = new Set<number>()
-  while (chosen.size < count) chosen.add(Math.floor(Math.random() * skills.length))
-  return skills.map((skill, i) => ({ ...skill, verified: chosen.has(i) }))
+/* Catalogue de Skills du feed. Chaque Skill porte de quoi composer sa MINIATURE
+   (icon = glyphe au trait, tone = tonalité de dégradé 0-5) ET de quoi faire
+   fonctionner les FILTRES :
+   - domain : la spécialité à laquelle il se rattache (filtre « domaine »)
+   - ais    : les IA compatibles (filtre par IA) — affichées en pastilles sur la carte
+   - attrs  : étiquettes transverses (Populaire / Récent / Vérifié / Tendance)
+   Le badge « vérifié » découle de attrs.includes('Vérifié') → badge et filtre restent
+   cohérents (plus de tirage aléatoire : la liste est figée et lisible). */
+type SkillCat = 'code' | 'graphisme' | 'uiux' | 'marketing' | 'finance'
+type FeedSkill = {
+  name: string; domain: SkillCat; icon: string; tone: number
+  ais: string[]; attrs: string[]; rating: string; installs: string
 }
+const CAT_LABEL: Record<SkillCat, string> = {
+  code: 'Code', graphisme: 'Graphisme', uiux: 'UI/UX', marketing: 'Marketing', finance: 'Finance',
+}
+/* Nom d'IA → nom de fichier du logo (/assets/ai-logos/*.svg), dérivé d'AI_OPTIONS. */
+const AI_LOGO: Record<string, string> = Object.fromEntries(AI_OPTIONS.map(o => [o.name, o.logo]))
 
-/* Écran feed (arrivée sur l'app) — encore en placeholder côté contenu. */
-const FEED_SKILLS = pickVerified([
-  { name: 'Skill 1', rating: '4.6', installs: '1k installs' },
-  { name: 'Skill 2', rating: '4.8', installs: '6k installs' },
-  { name: 'Skill 3', rating: '4.4', installs: '2.4k installs' },
-  { name: 'Skill 4', rating: '4.5', installs: '8k installs' },
-  { name: 'Skill 5', rating: '3.9', installs: '500 installs' },
-  { name: 'Skill 6', rating: '4.0', installs: '1.1k installs' },
-  { name: 'Skill 7', rating: '4.7', installs: '3.2k installs' },
-  { name: 'Skill 8', rating: '4.2', installs: '900 installs' },
-  { name: 'Skill 9', rating: '4.9', installs: '12k installs' },
-  { name: 'Skill 10', rating: '4.1', installs: '740 installs' },
-  { name: 'Skill 11', rating: '4.3', installs: '5.5k installs' },
-  { name: 'Skill 12', rating: '4.6', installs: '2k installs' },
-])
+const FEED_SKILLS: FeedSkill[] = [
+  // Code
+  { name: 'Refacto TypeScript', domain: 'code', icon: 'refresh', tone: 1, ais: ['Claude', 'Copilot', 'Codex'], attrs: ['Populaire', 'Vérifié'], rating: '4.8', installs: '12k installs' },
+  { name: 'Chasseur de bugs', domain: 'code', icon: 'bug', tone: 3, ais: ['Claude', 'Codex', 'ChatGPT'], attrs: ['Populaire'], rating: '4.6', installs: '8k installs' },
+  { name: 'Tests unitaires auto', domain: 'code', icon: 'test', tone: 0, ais: ['Claude', 'Copilot'], attrs: ['Vérifié'], rating: '4.5', installs: '5.5k installs' },
+  { name: 'Docs de code', domain: 'code', icon: 'doc', tone: 2, ais: ['ChatGPT', 'Claude'], attrs: [], rating: '4.2', installs: '2.4k installs' },
+  { name: 'Revue de PR', domain: 'code', icon: 'eye', tone: 4, ais: ['Claude', 'Copilot', 'Codex'], attrs: ['Vérifié', 'Tendance'], rating: '4.7', installs: '3.2k installs' },
+  { name: 'Régex magique', domain: 'code', icon: 'wand', tone: 5, ais: ['ChatGPT', 'Mistral'], attrs: ['Récent'], rating: '4.1', installs: '900 installs' },
+  { name: 'Optimiseur SQL', domain: 'code', icon: 'database', tone: 1, ais: ['Claude', 'Codex'], attrs: ['Vérifié'], rating: '4.4', installs: '1.1k installs' },
+  { name: 'Messages de commit', domain: 'code', icon: 'branch', tone: 0, ais: ['Copilot', 'ChatGPT'], attrs: ['Populaire'], rating: '4.3', installs: '6k installs' },
+  // Graphisme
+  { name: 'Palette de couleurs', domain: 'graphisme', icon: 'palette', tone: 3, ais: ['ChatGPT', 'Gemini'], attrs: ['Populaire'], rating: '4.6', installs: '7k installs' },
+  { name: 'Générateur de logo', domain: 'graphisme', icon: 'sparkles', tone: 5, ais: ['Gemini', 'ChatGPT', 'Loveable'], attrs: ['Tendance'], rating: '4.8', installs: '9k installs' },
+  { name: 'Détourage auto', domain: 'graphisme', icon: 'scissors', tone: 2, ais: ['Gemini', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.5', installs: '5k installs' },
+  { name: 'Upscale 4K', domain: 'graphisme', icon: 'expand', tone: 1, ais: ['Gemini'], attrs: ['Récent'], rating: '4.4', installs: '2k installs' },
+  { name: 'Mockups produit', domain: 'graphisme', icon: 'image', tone: 0, ais: ['ChatGPT', 'Gemini', 'Loveable'], attrs: ['Populaire'], rating: '4.3', installs: '3.4k installs' },
+  { name: 'Style transfer', domain: 'graphisme', icon: 'layers', tone: 4, ais: ['Gemini'], attrs: ['Récent', 'Tendance'], rating: '4.0', installs: '1.2k installs' },
+  { name: "Banque d'icônes", domain: 'graphisme', icon: 'grid', tone: 2, ais: ['ChatGPT', 'Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '4k installs' },
+  { name: 'Presets motion', domain: 'graphisme', icon: 'play', tone: 5, ais: ['Gemini', 'Loveable'], attrs: ['Récent'], rating: '3.9', installs: '800 installs' },
+  // UI/UX
+  { name: "Audit d'accessibilité", domain: 'uiux', icon: 'shield', tone: 2, ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.7', installs: '6k installs' },
+  { name: 'Design system', domain: 'uiux', icon: 'layers', tone: 0, ais: ['Claude', 'ChatGPT', 'Loveable'], attrs: ['Vérifié'], rating: '4.6', installs: '5.2k installs' },
+  { name: 'Wireframe express', domain: 'uiux', icon: 'frame', tone: 1, ais: ['ChatGPT', 'Loveable', 'Gemini'], attrs: ['Populaire', 'Tendance'], rating: '4.5', installs: '4.4k installs' },
+  { name: 'Microcopy UX', domain: 'uiux', icon: 'text', tone: 3, ais: ['Claude', 'ChatGPT'], attrs: [], rating: '4.3', installs: '2k installs' },
+  { name: 'Insights & heatmap', domain: 'uiux', icon: 'chart', tone: 4, ais: ['ChatGPT', 'Gemini'], attrs: ['Récent'], rating: '4.2', installs: '1.5k installs' },
+  { name: 'Composants Figma', domain: 'uiux', icon: 'grid', tone: 5, ais: ['Loveable', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.6', installs: '8k installs' },
+  { name: 'Flow utilisateur', domain: 'uiux', icon: 'flow', tone: 1, ais: ['Claude', 'ChatGPT'], attrs: ['Récent', 'Tendance'], rating: '4.4', installs: '1.1k installs' },
+  { name: 'Contraste & WCAG', domain: 'uiux', icon: 'shield', tone: 0, ais: ['Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '3k installs' },
+  // Marketing
+  { name: 'Calendrier social', domain: 'marketing', icon: 'calendar', tone: 0, ais: ['ChatGPT', 'Gemini'], attrs: ['Populaire'], rating: '4.4', installs: '5k installs' },
+  { name: 'Copywriting pub', domain: 'marketing', icon: 'megaphone', tone: 3, ais: ['Claude', 'ChatGPT'], attrs: ['Populaire', 'Vérifié'], rating: '4.6', installs: '7.5k installs' },
+  { name: 'Audit SEO', domain: 'marketing', icon: 'search', tone: 2, ais: ['ChatGPT', 'Gemini'], attrs: ['Vérifié', 'Tendance'], rating: '4.5', installs: '6k installs' },
+  { name: 'Séquences email', domain: 'marketing', icon: 'mail', tone: 1, ais: ['ChatGPT', 'Mistral'], attrs: [], rating: '4.2', installs: '2.2k installs' },
+  { name: 'Idées de posts', domain: 'marketing', icon: 'sparkles', tone: 5, ais: ['ChatGPT', 'Gemini', 'Mistral'], attrs: ['Populaire'], rating: '4.3', installs: '4.6k installs' },
+  { name: 'Analyse concurrence', domain: 'marketing', icon: 'eye', tone: 4, ais: ['Claude', 'ChatGPT'], attrs: ['Récent'], rating: '4.1', installs: '1.3k installs' },
+  { name: 'Hashtags & tendances', domain: 'marketing', icon: 'hashtag', tone: 5, ais: ['ChatGPT', 'Gemini'], attrs: ['Tendance', 'Récent'], rating: '4.0', installs: '900 installs' },
+  { name: 'Landing A/B', domain: 'marketing', icon: 'split', tone: 1, ais: ['ChatGPT', 'Loveable'], attrs: ['Vérifié'], rating: '4.4', installs: '2.8k installs' },
+  // Finance
+  { name: 'Prévisions de trésorerie', domain: 'finance', icon: 'chart', tone: 1, ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.6', installs: '4k installs' },
+  { name: 'Catégorisation dépenses', domain: 'finance', icon: 'tag', tone: 2, ais: ['ChatGPT', 'Mistral'], attrs: [], rating: '4.3', installs: '2.5k installs' },
+  { name: 'Modèle DCF', domain: 'finance', icon: 'calculator', tone: 0, ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié'], rating: '4.5', installs: '1.6k installs' },
+  { name: 'Rapport mensuel auto', domain: 'finance', icon: 'doc', tone: 3, ais: ['Claude', 'ChatGPT', 'Mistral'], attrs: ['Populaire'], rating: '4.4', installs: '3.1k installs' },
+  { name: 'Veille marché', domain: 'finance', icon: 'eye', tone: 4, ais: ['ChatGPT', 'Gemini'], attrs: ['Récent', 'Tendance'], rating: '4.2', installs: '1.2k installs' },
+  { name: 'Analyse de risque', domain: 'finance', icon: 'shield', tone: 1, ais: ['Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '1.9k installs' },
+  { name: 'Facturation auto', domain: 'finance', icon: 'receipt', tone: 5, ais: ['ChatGPT', 'Mistral'], attrs: ['Populaire'], rating: '4.3', installs: '5.5k installs' },
+  { name: 'Tableau de bord KPI', domain: 'finance', icon: 'grid', tone: 0, ais: ['ChatGPT', 'Gemini', 'Claude'], attrs: ['Vérifié', 'Tendance'], rating: '4.6', installs: '6.2k installs' },
+]
+/* IA proposées au filtre du feed : uniquement celles qui ont au moins un Skill dans le
+   catalogue (exclut « Autre », sans Skill → éviterait un feed vide), ordre d'AI_OPTIONS. */
+const FEED_AIS = AI_OPTIONS.map(o => o.name).filter(name => FEED_SKILLS.some(s => s.ais.includes(name)))
 const FEED_NAV = [
   { label: 'Feed personnalisé', icon: 'home' },
   { label: 'Explorer', icon: 'search' },
   { label: 'Mes Skills', icon: 'doc' },
+  { label: 'Connecteurs', icon: 'connect' },
   { label: 'Paramètres', icon: 'gear' },
 ] as const
-const FEED_EXTRA_FILTERS = ['Gratuit', 'Populaire', 'Récent', 'Vérifié', 'Tendance']
+const FEED_EXTRA_FILTERS = ['Populaire', 'Récent', 'Vérifié', 'Tendance']
 
 /* Mascotte + rôle selon le domaine choisi (1re spécialité). Chaque spécialité a
    son profil Frank dédié (assets/mascots/*.svg : vecteurs détourés, fond transparent,
@@ -284,11 +326,11 @@ const TRAIL_SIZE_RATIO_MAX = 0.075
 const TRAIL_SIZE_MIN = 5, TRAIL_SIZE_MAX = 72
 
 const WHY_CARDS: { key: string; Icon: () => React.JSX.Element; title: string; text: React.ReactNode }[] = [
-  { key: 'feed', Icon: IconSliders, title: 'Feed personnalisé',
+  { key: 'feed', Icon: IconFeedTarget, title: 'Feed personnalisé',
     text: "Construit dès l'inscription selon ton domaine + tes IA. Plus tu installes, plus c'est précis." },
-  { key: 'install', Icon: IconPlus, title: 'Installation en 1 clic',
+  { key: 'install', Icon: IconInstallPlus, title: 'Installation en 1 clic',
     text: <>Pas de terminal, pas de fichier à copier. Frank s'occupe de tout.<br /></> },
-  { key: 'verif', Icon: IconCheck, title: 'Skills vérifiés',
+  { key: 'verif', Icon: IconVerified, title: 'Skills vérifiés',
     text: "Chaque skill passe par 2 niveaux de vérification. Si quelque chose cloche, tu le vois avant d'installer." },
 ]
 
@@ -451,6 +493,7 @@ function Onboarding() {
   // l'icône, indépendant du domaine choisi (le rôle et les textes du feed ne changent pas).
   const [mascotOverride, setMascotOverride] = useState<string | null>(null)
   const [mascotPickerOpen, setMascotPickerOpen] = useState(false)
+  const [pickerHover, setPickerHover] = useState<string | null>(null) // mascotte survolée → libellé dynamique
 
   // Validations dérivées (recalculées à chaque rendu).
   // Accès à « Créer ton mot de passe » : les 2 champs remplis + CGU cochées.
@@ -482,6 +525,28 @@ function Onboarding() {
   const userName = presName.trim() || 'toi'
   const userAis = [...selectedAis].slice(0, 2).join(' + ') || 'tes IA'
 
+  // Filtrage du feed par FACETTES. Trois familles de chips actifs :
+  //   - domaine : le chip du domaine de l'utilisateur (un seul)
+  //   - IA      : ses chips d'IA (les 2 premières choisies)
+  //   - attributs : Populaire / Récent / Vérifié / Tendance
+  // Une carte passe si, pour CHAQUE famille active, elle satisfait au moins un chip
+  // (OU intra-famille) ; les attributs, eux, sont CUMULATIFS (ET). Une famille sans
+  // chip actif n'impose rien. `feedDomain` ramène « autre » sur uiux (pas de Skills
+  // « autre »), comme la mascotte. Désactiver le chip domaine = explorer tous domaines.
+  const feedDomain: SkillCat = primaryDomain === 'autre' ? 'uiux' : primaryDomain
+  const domainActive = feedFilters.has(domainInfo.label)
+  const activeAis = [...feedFilters].filter(f => f in AI_LOGO)
+  const activeAttrs = FEED_EXTRA_FILTERS.filter(f => feedFilters.has(f))
+  const visibleSkills = FEED_SKILLS.filter(s =>
+    (!domainActive || s.domain === feedDomain) &&
+    (activeAis.length === 0 || s.ais.some(a => activeAis.includes(a))) &&
+    activeAttrs.every(a => s.attrs.includes(a)),
+  )
+  // Chips d'IA « rapides » de l'utilisateur (ses 2 premières choisies au parcours,
+  // restreintes à celles qui ont des Skills) ; les autres IA sont proposées au dépliage.
+  const userAiChips = [...selectedAis].filter(a => FEED_AIS.includes(a)).slice(0, 2)
+  const otherAis = FEED_AIS.filter(a => !userAiChips.includes(a))
+
   const toggleFeedFilter = (f: string) =>
     setFeedFilters(prev => {
       const next = new Set(prev)
@@ -489,6 +554,15 @@ function Onboarding() {
       else next.add(f)
       return next
     })
+  // Chip d'IA (logo + nom), partagé par la rangée rapide et le panneau déplié.
+  const feedAiChip = (name: string) => (
+    <button key={name} type="button"
+      className={`ob-feed-chip ob-feed-chip--ai${feedFilters.has(name) ? ' is-on' : ''}`}
+      onClick={() => toggleFeedFilter(name)}>
+      <img className="ob-feed-chip-logo" src={`/assets/ai-logos/${AI_LOGO[name]}.svg`} alt="" aria-hidden="true" />
+      {name}
+    </button>
+  )
   // Installation 1 clic : la progression se joue seule (barre qui se remplit → coché),
   // pour faire sentir la promesse « pas de terminal, Frank s'occupe de tout ».
   const installSkill = (name: string) => {
@@ -497,10 +571,10 @@ function Onboarding() {
       setFeedInstalls(prev => (prev[name] === 'installing' ? { ...prev, [name]: 'installed' } : prev))
     }, 300)
   }
-  // À l'arrivée sur le feed, on coche par défaut les filtres « contexte » (domaine + IA).
+  // À l'arrivée sur le feed, on coche par défaut les filtres « contexte » (domaine + ses IA).
   useEffect(() => {
     if (step === 'feed') {
-      setFeedFilters(prev => (prev.size ? prev : new Set([domainInfo.label, ...[...selectedAis].slice(0, 2)])))
+      setFeedFilters(prev => (prev.size ? prev : new Set([domainInfo.label, ...userAiChips])))
     }
   }, [step])
 
@@ -535,7 +609,9 @@ function Onboarding() {
     const presFormEls = presFormRef.current ? Array.from(presFormRef.current.children) : []
     const pwdFormEls = pwdFormRef.current ? Array.from(pwdFormRef.current.children) : []
     const planCards = planCardsRef.current ? Array.from(planCardsRef.current.children) : []
-    const feedCards = feedCardsRef.current ? Array.from(feedCardsRef.current.children) : []
+    // Le feed est filtré dynamiquement (les cartes se montent/démontent selon les
+    // filtres) : on ne capture donc PAS les cartes ici. On anime le CONTENEUR de la
+    // grille (cible stable) et les cartes entrent en CSS (cf. .ob-feed-grid.is-revealed).
 
     const params = new URLSearchParams(window.location.search)
     const ob  = params.get('ob')
@@ -569,7 +645,7 @@ function Onboarding() {
     gsap.set(planCards, { autoAlpha: 0, y: 24, scale: 0.96 })
     gsap.set(feedSideRef.current, { autoAlpha: 0, x: -40 })
     gsap.set(feedHeadRef.current, { autoAlpha: 0, y: 20 })
-    gsap.set(feedCards, { autoAlpha: 0, y: 24, scale: 0.97 })
+    gsap.set(feedCardsRef.current, { autoAlpha: 0 })   // conteneur caché → aucune carte ne flashe au chargement
 
     const applyMascotKind = (s: keyof typeof FRANK) => {
       const useSkill = s === 'skill'
@@ -927,10 +1003,14 @@ function Onboarding() {
         onStart: feedLean.start, onUpdate: feedLean.update }, 0.1)
       t.to(frank, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 0.7)
 
-      // L'app se matérialise : sidebar depuis la gauche, bandeau, puis cartes une à une
+      // L'app se matérialise : sidebar depuis la gauche, bandeau, puis la grille.
+      // La classe is-revealed est posée AVANT que le conteneur ne s'affiche, pour que
+      // les cartes (déjà filtrées par domaine+IA à l'arrivée) entrent en cascade CSS
+      // depuis l'opacité 0 (cf. @keyframes ob-feed-card-in), sans 1re frame visible.
       t.to(feedSideRef.current, { autoAlpha: 1, x: 0, duration: 0.6, ease: 'power3.out' }, 0.7)
       t.to(feedHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.95)
-      t.to(feedCards, { autoAlpha: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.08, ease: 'back.out(1.3)' }, 1.1)
+      t.add(() => feedCardsRef.current?.classList.add('is-revealed'), 1.05)
+      t.set(feedCardsRef.current, { autoAlpha: 1 }, 1.1)
 
       return t
     }
@@ -978,7 +1058,7 @@ function Onboarding() {
       else if (startStep === 'present') gsap.set([presHeadRef.current, presBackRef.current, ...presFormEls], { autoAlpha: 1, y: 0 })
       else if (startStep === 'password') gsap.set([pwdHeadRef.current, pwdBackRef.current, ...pwdFormEls], { autoAlpha: 1, y: 0 })
       else if (startStep === 'plan') gsap.set([planHeadRef.current, planNavRef.current, ...planCards], { autoAlpha: 1, y: 0, scale: 1 })
-      else gsap.set([feedSideRef.current, feedHeadRef.current, ...feedCards], { autoAlpha: 1, x: 0, y: 0, scale: 1 })
+      else { gsap.set([feedSideRef.current, feedHeadRef.current, feedCardsRef.current], { autoAlpha: 1, x: 0, y: 0 }); feedCardsRef.current?.classList.add('is-revealed') }
       buildSegments()
       if (frz !== null) {
         const seg = segsRef.current[Math.min(startIdx, segsRef.current.length - 1)]
@@ -1393,7 +1473,12 @@ function Onboarding() {
                 <h2>{title}</h2>
                 <p>{text}</p>
               </div>
-              <div className="ob-why-card-media" aria-hidden="true" />
+              <div className="ob-why-card-media" aria-hidden="true">
+                <video className="ob-why-card-video" autoPlay loop muted playsInline preload="auto">
+                  <source src={`/assets/why/${key}.webm`} type="video/webm" />
+                  <source src={`/assets/why/${key}.mp4`} type="video/mp4" />
+                </video>
+              </div>
             </article>
           ))}
         </div>
@@ -1602,7 +1687,7 @@ function Onboarding() {
               aria-label="Changer de mascotte"
               aria-haspopup="menu"
               aria-expanded={mascotPickerOpen}
-              onClick={() => setMascotPickerOpen(o => !o)}
+              onClick={() => { setMascotPickerOpen(o => !o); setPickerHover(null) }}
             >
               <img className="ob-feed-avatar" src={`/assets/mascots/${shownMascot}.svg`} alt="" aria-hidden="true" />
               <span className="ob-feed-avatar-edit" aria-hidden="true"><IconPen /></span>
@@ -1616,22 +1701,28 @@ function Onboarding() {
               <>
                 <div className="ob-mascot-overlay" onClick={() => setMascotPickerOpen(false)} />
                 <div className="ob-mascot-pop" role="menu" aria-label="Choisir une mascotte">
-                  <p className="ob-mascot-pop-title">Mascotte</p>
-                  <div className="ob-mascot-pop-grid">
+                  <p className="ob-mascot-pop-head">Change de tête</p>
+                  <div className="ob-mascot-pop-grid" onMouseLeave={() => setPickerHover(null)}>
                     {MASCOT_CHOICES.map(c => (
                       <button
                         key={c.mascot}
                         type="button"
                         role="menuitemradio"
                         aria-checked={shownMascot === c.mascot}
+                        aria-label={c.label}
+                        title={c.label}
                         className={`ob-mascot-choice${shownMascot === c.mascot ? ' is-active' : ''}`}
+                        onMouseEnter={() => setPickerHover(c.mascot)}
+                        onFocus={() => setPickerHover(c.mascot)}
                         onClick={() => { setMascotOverride(c.mascot); setMascotPickerOpen(false) }}
                       >
                         <img src={`/assets/mascots/${c.mascot}.svg`} alt="" aria-hidden="true" />
-                        <span>{c.label}</span>
                       </button>
                     ))}
                   </div>
+                  <p className="ob-mascot-pop-name">
+                    {MASCOT_CHOICES.find(c => c.mascot === (pickerHover ?? shownMascot))?.label}
+                  </p>
                 </div>
               </>
             )}
@@ -1643,38 +1734,72 @@ function Onboarding() {
               <p className="ob-feed-banner-h">Bienvenue</p>
               <p className="ob-feed-banner-p">Salut {userName}, voici ton feed perso adapté à {userAis} et {domainInfo.label}.</p>
             </div>
-            <div className="ob-feed-filters">
-              {[domainInfo.label, ...[...selectedAis].slice(0, 2)].map(f => (
-                <button key={f} type="button"
-                  className={`ob-feed-chip${feedFilters.has(f) ? ' is-on' : ''}`}
-                  onClick={() => toggleFeedFilter(f)}>{f}</button>
-              ))}
-              <button type="button"
-                className={`ob-feed-chip ob-feed-chip--more${showFilters ? ' is-on' : ''}`}
-                onClick={() => setShowFilters(s => !s)}>{showFilters ? '− Moins' : '+ Filtres'}</button>
-              {showFilters && FEED_EXTRA_FILTERS.map(f => (
-                <button key={f} type="button"
-                  className={`ob-feed-chip${feedFilters.has(f) ? ' is-on' : ''}`}
-                  onClick={() => toggleFeedFilter(f)}>{f}</button>
-              ))}
+            <div className="ob-feed-filterbar">
+              {/* Rangée rapide : domaine + IA de l'utilisateur (logos) + bouton de dépliage */}
+              <div className="ob-feed-filters">
+                <button type="button"
+                  className={`ob-feed-chip${feedFilters.has(domainInfo.label) ? ' is-on' : ''}`}
+                  onClick={() => toggleFeedFilter(domainInfo.label)}>{domainInfo.label}</button>
+                {userAiChips.map(feedAiChip)}
+                <button type="button"
+                  className={`ob-feed-chip ob-feed-chip--more${showFilters ? ' is-on' : ''}`}
+                  onClick={() => setShowFilters(s => !s)}>{showFilters ? '− Moins' : '+ Filtres'}</button>
+              </div>
+              {/* Panneau déplié (choix des IA + attributs). Monté en permanence : on ne
+                  bascule que is-open → la hauteur s'anime (grid-template-rows 0fr↔1fr),
+                  donc ouverture ET fermeture fluides, et la grille en dessous glisse en
+                  douceur. inert quand fermé : pas de tabulation dans les chips masqués. */}
+              <div className={`ob-feed-collapse${showFilters ? ' is-open' : ''}`} inert={!showFilters}>
+                <div className="ob-feed-collapse-inner">
+                  <div className="ob-feed-filter-panel">
+                    {otherAis.length > 0 && (
+                      <div className="ob-feed-filter-group">
+                        <p className="ob-feed-filter-label">{userAiChips.length ? 'Autres IA' : 'IA'}</p>
+                        <div className="ob-feed-filter-row">{otherAis.map(feedAiChip)}</div>
+                      </div>
+                    )}
+                    <div className="ob-feed-filter-group">
+                      <p className="ob-feed-filter-label">Filtres</p>
+                      <div className="ob-feed-filter-row">
+                        {FEED_EXTRA_FILTERS.map(f => (
+                          <button key={f} type="button"
+                            className={`ob-feed-chip${feedFilters.has(f) ? ' is-on' : ''}`}
+                            onClick={() => toggleFeedFilter(f)}>{f}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div ref={feedCardsRef} className="ob-feed-grid">
-            {FEED_SKILLS.map(skill => {
+            {visibleSkills.map(skill => {
               const istate = feedInstalls[skill.name]
+              const verified = skill.attrs.includes('Vérifié')
               return (
                 <article key={skill.name} className={`ob-feed-card${istate === 'installed' ? ' is-owned' : ''}`}>
-                  <div className="ob-feed-thumb" aria-hidden="true" />
+                  {/* Miniature : dégradé océan (tonalité), glyphe au trait du Skill + catégorie */}
+                  <div className="ob-feed-thumb" data-tone={skill.tone} aria-hidden="true">
+                    <span className="ob-feed-thumb-ic"><SkillIcon kind={skill.icon} /></span>
+                    <span className="ob-feed-thumb-cat">{CAT_LABEL[skill.domain]}</span>
+                  </div>
                   <div className="ob-feed-card-body">
                     <h3 className="ob-feed-card-name">
                       {skill.name}
-                      {skill.verified && (
+                      {verified && (
                         <span className="ob-feed-verified" title="Skill vérifié" aria-label="Skill vérifié">
                           <IconVerified />
                         </span>
                       )}
                     </h3>
                     <p className="ob-feed-card-meta">★ {skill.rating} · {skill.installs}</p>
+                    {/* IA compatibles : rend le filtre par IA tangible directement sur la carte */}
+                    <div className="ob-feed-card-ais" aria-label={`Compatible ${skill.ais.join(', ')}`}>
+                      {skill.ais.slice(0, 3).map(a => (
+                        <img key={a} className="ob-feed-ai" src={`/assets/ai-logos/${AI_LOGO[a]}.svg`} alt="" title={a} />
+                      ))}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -1699,6 +1824,11 @@ function Onboarding() {
                 </article>
               )
             })}
+            {visibleSkills.length === 0 && (
+              <p className="ob-feed-empty">
+                Aucun Skill ne correspond à ces filtres. Retire-en un pour voir plus de résultats.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -1717,32 +1847,35 @@ function Onboarding() {
   )
 }
 
-function IconSliders() {
+/* Pictos des cartes « Pourquoi Frank ? » — repris tels quels du proto Figma
+   (node 1329:2255 et 1329:2289, opération « Subtract ») : un disque plein #EDEDED
+   dont le symbole est découpé en négatif (fill-rule evenodd) → il laisse voir la
+   carte glass au travers, exactement comme la maquette. Même recette que IconVerified.
+   IconFeedTarget : la cible/viseur de « Feed personnalisé ». Le contour extérieur du
+   disque (cercle) remplace le rect+clip de l'export Figma pour rester self-contained. */
+function IconFeedTarget() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <line x1="3.5" y1="9" x2="20.5" y2="9" />
-      <circle cx="9" cy="9" r="2.6" fill="currentColor" stroke="none" />
-      <line x1="3.5" y1="15" x2="20.5" y2="15" />
-      <circle cx="15" cy="15" r="2.6" fill="currentColor" stroke="none" />
+    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        fill="#EDEDED"
+        d="M16 0C24.8366 0 32 7.16344 32 16C32 24.8366 24.8366 32 16 32C7.16344 32 0 24.8366 0 16C0 7.16344 7.16344 0 16 0ZM16 4C15.4479 4.00018 15 4.44782 15 5V8.06348C11.3817 8.51491 8.51683 11.3817 8.06543 15H5.00098C4.44872 15 4.00102 15.4478 4.00098 16C4.00098 16.5523 4.44869 17 5.00098 17H8.06543C8.5168 20.6183 11.3817 23.4841 15 23.9355V27C15 27.5521 15.4479 27.9998 16 28C16.5523 28 17 27.5522 17 27V23.9355C20.6186 23.4843 23.4842 20.6186 23.9355 17H27.001C27.5531 16.9998 28.0009 16.5521 28.001 16C28.001 15.4478 27.5531 15.0002 27.001 15H23.9355C23.4841 11.3814 20.6187 8.51466 17 8.06348V5C17 4.44772 16.5523 4 16 4ZM17 10.8232C19.1972 11.1616 20.9512 12.8414 21.4004 15H21.001C20.4487 15 20.001 15.4477 20.001 16C20.0011 16.5522 20.4487 17 21.001 17H21.4336C21.0475 19.2457 19.2585 21.0105 17 21.3584V21C17 20.4477 16.5523 20 16 20C15.4479 20.0002 15 20.4478 15 21V21.2881C12.9153 20.8158 11.2956 19.1235 10.9307 17H11.001C11.5531 16.9998 12.001 16.5522 12.001 16C12.0009 15.4479 11.5531 15.0002 11.001 15H10.9639C11.3877 12.9621 12.9751 11.3521 15 10.8936V11C15 11.5521 15.4479 11.9998 16 12C16.5523 12 17 11.5522 17 11V10.8232ZM16 14C14.8956 14.0002 14 14.8956 14 16C14 17.1045 14.8956 17.9998 16 18C17.1046 18 18 17.1046 18 16C18 14.8954 17.1046 14 16 14Z"
+      />
     </svg>
   )
 }
 
-function IconPlus() {
+/* IconInstallPlus : le « + » de « Installation en 1 clic » (node 1329:2289). */
+function IconInstallPlus() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="12" cy="12" r="8.5" />
-      <line x1="12" y1="8" x2="12" y2="16" />
-      <line x1="8" y1="12" x2="16" y2="12" />
-    </svg>
-  )
-}
-
-function IconCheck() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M8 12.4l2.6 2.6 5.4-5.8" />
+    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        fill="#EDEDED"
+        d="M16 0C24.8366 0 32 7.16344 32 16C32 24.8366 24.8366 32 16 32C7.16344 32 0 24.8366 0 16C0 7.16344 7.16344 0 16 0ZM16 8C15.4477 8 15 8.44771 15 9V15H9C8.44771 15 8 15.4477 8 16C8 16.5523 8.44771 17 9 17H15V23C15 23.5523 15.4477 24 16 24C16.5523 24 17 23.5523 17 23V17H23C23.5523 17 24 16.5523 24 16C24 15.4477 23.5523 15 23 15H17V9C17 8.44772 16.5523 8 16 8Z"
+      />
     </svg>
   )
 }
@@ -1802,24 +1935,39 @@ function IconHome() {
     </svg>
   )
 }
+/* Explorer : au repos une loupe simple ; au survol elle se métamorphose en
+   loupe « pieuvre » à la Frank (cercle festonné + spirale + ventouses, Figma
+   node 976:639). Les deux états sont superposés et fondus en CSS (.ob-search-*). */
 function IconSearch() {
   return (
-    <svg viewBox="4.152 3.672 48 48" fill="currentColor">
-      <path fillRule="evenodd" clipRule="evenodd" d="M16.1068 23.4921C16.789 17.937 21.8447 13.9869 27.3998 14.6689C32.9549 15.351 36.905 20.4067 36.2231 25.9618C35.9455 28.2225 34.9431 30.2171 33.4779 31.7421L40.0219 40.4062C40.6075 41.1815 40.4534 42.2854 39.6781 42.871C38.9029 43.4563 37.7998 43.3023 37.2143 42.5273L30.6508 33.8359C30.6464 33.8301 30.6424 33.8241 30.6381 33.8183C28.9285 34.6614 26.9634 35.0347 24.9301 34.7851C19.3749 34.103 15.4248 29.0473 16.1068 23.4921ZM27.059 17.454C23.0424 16.961 19.3874 19.8174 18.894 23.8339C18.4009 27.8505 21.2563 31.5065 25.2729 31.9999C29.2896 32.4931 32.9465 29.6368 33.4398 25.62C33.9328 21.6033 31.0757 17.9472 27.059 17.454Z" />
-    </svg>
+    <span className="ob-search-morph">
+      <svg className="ob-search-plain" viewBox="4.152 3.672 48 48" fill="currentColor">
+        <path fillRule="evenodd" clipRule="evenodd" d="M16.1068 23.4921C16.789 17.937 21.8447 13.9869 27.3998 14.6689C32.9549 15.351 36.905 20.4067 36.2231 25.9618C35.9455 28.2225 34.9431 30.2171 33.4779 31.7421L40.0219 40.4062C40.6075 41.1815 40.4534 42.2854 39.6781 42.871C38.9029 43.4563 37.7998 43.3023 37.2143 42.5273L30.6508 33.8359C30.6464 33.8301 30.6424 33.8241 30.6381 33.8183C28.9285 34.6614 26.9634 35.0347 24.9301 34.7851C19.3749 34.103 15.4248 29.0473 16.1068 23.4921ZM27.059 17.454C23.0424 16.961 19.3874 19.8174 18.894 23.8339C18.4009 27.8505 21.2563 31.5065 25.2729 31.9999C29.2896 32.4931 32.9465 29.6368 33.4398 25.62C33.9328 21.6033 31.0757 17.9472 27.059 17.454Z" />
+      </svg>
+      <svg className="ob-search-octo" viewBox="34.6 30.6 400 400" fill="currentColor">
+        <path d="M142.48 145.308C134.363 156.47 133.068 167.935 124.309 161.311C116.87 155.704 126.134 139.262 129.8 134.857C133.286 130.686 142.667 118.815 151.04 122.679C162.786 128.078 150.117 134.866 142.499 145.347L142.48 145.308Z" />
+        <path d="M200.85 114.199C187.057 114.669 177.222 120.703 177.054 109.722C176.897 100.408 195.558 97.5937 201.285 97.7731C206.718 97.9543 221.848 98.0446 223.954 107.023C226.926 119.603 213.78 113.794 200.83 114.239L200.85 114.199Z" />
+        <path d="M128.199 204.475C130.428 218.094 137.67 227.077 126.801 228.648C117.584 229.994 112.406 211.847 111.852 206.143C111.337 200.732 109.492 185.714 118.127 182.478C130.224 177.921 126.143 191.702 128.24 204.489L128.199 204.475Z" />
+        <path d="M153.246 257.952C163.184 267.528 174.362 270.39 166.595 278.153C160.017 284.749 145.007 273.31 141.149 269.073C137.497 265.046 127.031 254.12 132.011 246.359C138.975 235.468 143.954 248.951 153.288 257.938L153.246 257.952Z" />
+        <path d="M146.854 135.749C166.841 115.241 189.188 109.693 207.613 110.602C216.802 111.055 225.013 113.114 231.478 115.71C237.87 118.277 242.777 121.461 245.15 124.323H245.149C245.326 124.535 245.489 124.712 245.654 124.871L245.821 125.027L245.849 125.05L245.876 125.075C249.297 128.312 252.246 134.429 252.805 141.016C253.372 147.693 251.497 155.109 244.909 160.653L244.91 160.654C244.492 161.012 244.047 161.313 243.637 161.56L243.636 161.559C243.045 161.934 242.396 162.301 241.706 162.6C237.885 164.271 232.515 165.128 227.51 164.248C222.455 163.359 217.519 160.629 215.213 154.91V154.909C213.152 149.788 214.171 145.471 216.514 142.635C217.655 141.254 219.092 140.249 220.575 139.696C222.031 139.154 223.696 138.992 225.185 139.571C225.352 139.636 225.504 139.722 225.64 139.82C226.676 140.375 227.419 141.332 227.653 142.452C227.927 143.766 227.464 145.172 226.257 146.073L226.253 146.075C225.668 146.511 225.396 146.835 225.25 147.109C225.114 147.362 225.005 147.727 225.023 148.386C225.027 148.534 225.264 149.179 226.39 149.733C227.417 150.238 228.676 150.374 229.725 149.986C230.547 149.677 231.247 149.057 231.703 148.253C232.909 146.08 233.541 139.575 224.262 133.068C224.26 133.066 224.257 133.064 224.252 133.061C224.241 133.055 224.227 133.048 224.212 133.041C214.482 128.142 202.788 128.962 191.987 132.888C181.187 136.813 171.627 143.725 166.334 150.473L166.277 150.544L166.214 150.611C166.193 150.633 166.171 150.656 166.15 150.679C166.149 150.68 166.146 150.681 166.145 150.683C145.292 176.954 146.466 209.4 161.174 233.455L161.885 234.595L161.886 234.596C172.697 251.602 190.81 261.639 210.155 262.602L211.848 262.671C247.174 263.806 268.128 244.834 276.646 221.985C285.382 198.549 280.981 171.298 265.735 157.062L265.709 157.038L265.686 157.014C263.367 154.694 262.045 151.773 261.718 148.555C261.198 143.421 260.682 140.439 260.018 138.057C259.353 135.67 258.526 133.833 257.262 130.889V130.888C257.132 130.584 256.888 129.806 257.37 128.986C257.831 128.202 258.59 128.027 258.836 127.984C259.352 127.893 259.842 128.002 260.018 128.041C260.528 128.154 261.156 128.372 261.709 128.583C262.67 128.949 263.813 129.45 264.404 129.76L264.621 129.88L264.627 129.884C286.95 143.253 297.703 161.283 301.352 179.333C304.987 197.312 301.556 215.194 295.743 228.407L295.744 228.408C295.161 229.735 295.708 228.484 293.955 232.346L293.956 232.347C287.72 246.151 278.512 257.516 267.4 266.05L321.532 337.721C326.411 344.182 325.129 353.375 318.668 358.255C312.208 363.135 303.014 361.853 298.134 355.392L243.435 282.97C242.656 281.938 242.034 280.836 241.565 279.694C217.296 287.682 189.151 285.256 163.663 269.991H163.662C163.647 269.983 163.627 269.972 163.607 269.96C163.55 269.927 163.431 269.853 163.293 269.739C118.006 237.196 112.409 172.245 146.832 135.773L146.843 135.761L146.854 135.749Z" />
+      </svg>
+    </span>
   )
 }
 function IconDoc() {
   return (
     <svg viewBox="4.152 3.672 48 48" fill="currentColor">
-      {/* Feuille arrière */}
-      <path d="M21.3115 15.072V36.552C21.3115 37.0822 21.7413 37.512 22.2715 37.512H37.8715C38.4017 37.512 38.8315 37.0822 38.8315 36.552V15.072C38.8315 14.5418 38.4017 14.112 37.8715 14.112H22.2715C21.7413 14.112 21.3115 14.5418 21.3115 15.072Z" />
-      {/* Feuille intermédiaire */}
-      <path d="M19.3906 16.992V38.472C19.3906 39.0022 19.8204 39.432 20.3506 39.432H35.9506C36.4808 39.432 36.9106 39.0022 36.9106 38.472V16.992C36.9106 16.4618 36.4808 16.032 35.9506 16.032H20.3506C19.8204 16.032 19.3906 16.4618 19.3906 16.992Z" />
-      {/* Traits sombres entre les feuilles (les masques du Figma) */}
-      <path fill="none" stroke="#18143C" strokeWidth="1.2" d="M35.9492 15.4325C36.8108 15.4325 37.5097 16.1306 37.5098 16.9921V38.4726C37.5095 39.3339 36.8106 40.0321 35.9492 40.0321H20.3496C19.4882 40.0321 18.7903 39.3339 18.79 38.4726V16.9921C18.7901 16.1306 19.4881 15.4325 20.3496 15.4325H35.9492Z" />
+      {/* Feuilles du dessous : décalées au repos, elles glissent pour s'aligner
+         sur la feuille avant au survol (cf. CSS .ob-doc-back1 / .ob-doc-back2). */}
+      <g className="ob-doc-back2">
+        <path d="M21.3115 15.072V36.552C21.3115 37.0822 21.7413 37.512 22.2715 37.512H37.8715C38.4017 37.512 38.8315 37.0822 38.8315 36.552V15.072C38.8315 14.5418 38.4017 14.112 37.8715 14.112H22.2715C21.7413 14.112 21.3115 14.5418 21.3115 15.072Z" />
+      </g>
+      <g className="ob-doc-back1">
+        <path d="M19.3906 16.992V38.472C19.3906 39.0022 19.8204 39.432 20.3506 39.432H35.9506C36.4808 39.432 36.9106 39.0022 36.9106 38.472V16.992C36.9106 16.4618 36.4808 16.032 35.9506 16.032H20.3506C19.8204 16.032 19.3906 16.4618 19.3906 16.992Z" />
+        <path fill="none" stroke="#18143C" strokeWidth="1.2" d="M35.9492 15.4325C36.8108 15.4325 37.5097 16.1306 37.5098 16.9921V38.4726C37.5095 39.3339 36.8106 40.0321 35.9492 40.0321H20.3496C19.4882 40.0321 18.7903 39.3339 18.79 38.4726V16.9921C18.7901 16.1306 19.4881 15.4325 20.3496 15.4325H35.9492Z" />
+      </g>
+      {/* Feuille avant (fixe) : trait, corps, coin plié */}
       <path fill="none" stroke="#18143C" strokeWidth="1.2" strokeLinejoin="round" d="M28.4717 17.3525C28.8853 17.3525 29.2827 17.5161 29.5752 17.8086L35.1328 23.3672C35.4252 23.6597 35.5898 24.0561 35.5898 24.4697V40.332C35.5898 41.1936 34.8909 41.8925 34.0293 41.8925H18.4297C17.5681 41.8925 16.8701 41.1936 16.8701 40.332V18.9121C16.8701 18.0505 17.5682 17.3525 18.4297 17.3525H28.4717Z" />
-      {/* Feuille avant + coin plié */}
       <path fillRule="evenodd" clipRule="evenodd" d="M18.4317 17.9519C17.9015 17.9519 17.4717 18.3817 17.4717 18.9119V40.3319C17.4717 40.8621 17.9015 41.2919 18.4317 41.2919H34.0317C34.5619 41.2919 34.9917 40.8621 34.9917 40.3319V24.0719H29.8317C29.3015 24.0719 28.8717 23.6421 28.8717 23.1119V17.9519H18.4317Z" />
       <path fillOpacity="0.5" d="M34.9917 24.0719H29.8317C29.3015 24.0719 28.8717 23.6421 28.8717 23.1119V17.9519L34.9917 24.0719Z" />
     </svg>
@@ -1828,7 +1976,7 @@ function IconDoc() {
 function IconGear() {
   return (
     <svg viewBox="4.152 3.672 48 48" fill="currentColor">
-      <path fillRule="evenodd" clipRule="evenodd" d="M21.9218 15.7423C23.3045 14.944 25.0729 15.4172 25.8713 16.7999C26.0082 17.0369 26.2798 17.1598 26.5508 17.1214C26.6978 17.1005 26.8453 17.0827 26.9925 17.0682C27.3478 17.0329 27.6538 16.7913 27.7467 16.4467C28.16 14.9044 29.7455 13.9891 31.2878 14.4023L32.3056 14.675C33.8479 15.0882 34.7633 16.6738 34.3501 18.2161L34.3018 18.3961C34.2129 18.7279 34.3421 19.0779 34.6119 19.2906C34.6294 19.3044 34.6477 19.3181 34.6651 19.3321C34.9417 19.5528 35.3255 19.5957 35.632 19.4188L35.8341 19.3021C37.2169 18.5038 38.9858 18.9778 39.7841 20.3605L40.311 21.2731C41.1091 22.6558 40.6348 24.424 39.2521 25.2222L38.9705 25.3848C38.6701 25.5584 38.5149 25.902 38.5588 26.2461C38.5652 26.2958 38.5709 26.3462 38.5766 26.396C38.6164 26.7464 38.8571 27.0465 39.1978 27.1379L39.5553 27.2337C41.0976 27.6469 42.013 29.2325 41.5997 30.7748L41.327 31.7926C40.9135 33.3346 39.3281 34.2502 37.7859 33.837L37.3732 33.7257C37.0366 33.6356 36.6817 33.7706 36.4693 34.0469C36.4666 34.0504 36.4635 34.0539 36.4608 34.0575C36.2487 34.3326 36.2112 34.7092 36.3849 35.0101L36.6525 35.4736C37.4505 36.8563 36.9763 38.6245 35.5936 39.4227L34.6811 39.9496C33.2985 40.7476 31.53 40.2744 30.7316 38.892L30.5036 38.4971C30.3268 38.1913 29.9743 38.036 29.625 38.0887C29.6079 38.0912 29.5905 38.0945 29.5734 38.097C29.2332 38.1467 28.9456 38.3849 28.8568 38.7171L28.7692 39.0439C28.3558 40.5859 26.7703 41.5015 25.2282 41.0884L24.2103 40.8156C22.6682 40.4024 21.7529 38.8167 22.1659 37.2746L22.2049 37.1292C22.2969 36.7839 22.1522 36.4215 21.862 36.213C21.7786 36.1531 21.6956 36.0917 21.6138 36.0293C21.338 35.8188 20.9626 35.7817 20.6621 35.9552L20.5784 36.0035C19.1958 36.8015 17.4273 36.3284 16.6289 34.9459L16.1021 34.0334C15.3038 32.6507 15.7779 30.8818 17.1605 30.0834C17.4668 29.9065 17.6262 29.5503 17.5721 29.2007C17.5583 29.1117 17.5461 29.0217 17.5346 28.9326C17.4931 28.612 17.2702 28.3399 16.958 28.2562C15.4162 27.8429 14.5012 26.2579 14.9141 24.716L15.1868 23.6982C15.6001 22.1559 17.1856 21.2405 18.7279 21.6537C19.0112 21.7296 19.3099 21.614 19.4826 21.377C19.6128 21.1981 19.7496 21.0223 19.8916 20.851C20.0398 20.6721 20.0664 20.4196 19.9503 20.2184C19.1521 18.8357 19.6267 17.0676 21.0092 16.2692L21.9218 15.7423ZM26.0601 24.1581C24.1528 25.2594 23.4986 27.6981 24.5998 29.6054C25.7009 31.5125 28.1401 32.1654 30.0474 31.0643C31.9546 29.9631 32.6079 27.5248 31.5068 25.6176C30.4057 23.7103 27.9674 23.057 26.0601 24.1581Z" />
+      <path className="ob-gear-spin" fillRule="evenodd" clipRule="evenodd" d="M21.9218 15.7423C23.3045 14.944 25.0729 15.4172 25.8713 16.7999C26.0082 17.0369 26.2798 17.1598 26.5508 17.1214C26.6978 17.1005 26.8453 17.0827 26.9925 17.0682C27.3478 17.0329 27.6538 16.7913 27.7467 16.4467C28.16 14.9044 29.7455 13.9891 31.2878 14.4023L32.3056 14.675C33.8479 15.0882 34.7633 16.6738 34.3501 18.2161L34.3018 18.3961C34.2129 18.7279 34.3421 19.0779 34.6119 19.2906C34.6294 19.3044 34.6477 19.3181 34.6651 19.3321C34.9417 19.5528 35.3255 19.5957 35.632 19.4188L35.8341 19.3021C37.2169 18.5038 38.9858 18.9778 39.7841 20.3605L40.311 21.2731C41.1091 22.6558 40.6348 24.424 39.2521 25.2222L38.9705 25.3848C38.6701 25.5584 38.5149 25.902 38.5588 26.2461C38.5652 26.2958 38.5709 26.3462 38.5766 26.396C38.6164 26.7464 38.8571 27.0465 39.1978 27.1379L39.5553 27.2337C41.0976 27.6469 42.013 29.2325 41.5997 30.7748L41.327 31.7926C40.9135 33.3346 39.3281 34.2502 37.7859 33.837L37.3732 33.7257C37.0366 33.6356 36.6817 33.7706 36.4693 34.0469C36.4666 34.0504 36.4635 34.0539 36.4608 34.0575C36.2487 34.3326 36.2112 34.7092 36.3849 35.0101L36.6525 35.4736C37.4505 36.8563 36.9763 38.6245 35.5936 39.4227L34.6811 39.9496C33.2985 40.7476 31.53 40.2744 30.7316 38.892L30.5036 38.4971C30.3268 38.1913 29.9743 38.036 29.625 38.0887C29.6079 38.0912 29.5905 38.0945 29.5734 38.097C29.2332 38.1467 28.9456 38.3849 28.8568 38.7171L28.7692 39.0439C28.3558 40.5859 26.7703 41.5015 25.2282 41.0884L24.2103 40.8156C22.6682 40.4024 21.7529 38.8167 22.1659 37.2746L22.2049 37.1292C22.2969 36.7839 22.1522 36.4215 21.862 36.213C21.7786 36.1531 21.6956 36.0917 21.6138 36.0293C21.338 35.8188 20.9626 35.7817 20.6621 35.9552L20.5784 36.0035C19.1958 36.8015 17.4273 36.3284 16.6289 34.9459L16.1021 34.0334C15.3038 32.6507 15.7779 30.8818 17.1605 30.0834C17.4668 29.9065 17.6262 29.5503 17.5721 29.2007C17.5583 29.1117 17.5461 29.0217 17.5346 28.9326C17.4931 28.612 17.2702 28.3399 16.958 28.2562C15.4162 27.8429 14.5012 26.2579 14.9141 24.716L15.1868 23.6982C15.6001 22.1559 17.1856 21.2405 18.7279 21.6537C19.0112 21.7296 19.3099 21.614 19.4826 21.377C19.6128 21.1981 19.7496 21.0223 19.8916 20.851C20.0398 20.6721 20.0664 20.4196 19.9503 20.2184C19.1521 18.8357 19.6267 17.0676 21.0092 16.2692L21.9218 15.7423ZM26.0601 24.1581C24.1528 25.2594 23.4986 27.6981 24.5998 29.6054C25.7009 31.5125 28.1401 32.1654 30.0474 31.0643C31.9546 29.9631 32.6079 27.5248 31.5068 25.6176C30.4057 23.7103 27.9674 23.057 26.0601 24.1581Z" />
     </svg>
   )
 }
@@ -1839,14 +1987,85 @@ function IconPen() {
     </svg>
   )
 }
+/* Connecteurs (Figma node 975:679) : 2×2 modules — 3 carrés pleins + un module
+   « + » à coin plié en haut-droite. Repère du proto à grande échelle (viewBox 400).
+   Traits de séparation et « + » sombres (#18143C), comme le document. Le module
+   « + » est isolé dans un groupe : il se détache au survol (cf. CSS .ob-connect-plug). */
+function IconConnect() {
+  return (
+    <svg viewBox="34.6 30.6 400 400" fill="currentColor">
+      <rect x="134.6" y="130.6" width="100" height="100" rx="8" />
+      <rect x="134.6" y="230.6" width="100" height="100" rx="8" />
+      <rect x="234.6" y="230.6" width="100" height="100" rx="8" />
+      <rect fill="none" stroke="#18143C" strokeWidth="8" x="135.6" y="130.6" width="100" height="100" rx="8" />
+      <rect fill="none" stroke="#18143C" strokeWidth="8" x="135.6" y="230.6" width="100" height="100" rx="8" />
+      <rect fill="none" stroke="#18143C" strokeWidth="8" x="235.6" y="230.6" width="100" height="100" rx="8" />
+      <g className="ob-connect-plug">
+        <path d="M234.6 138.6C234.6 134.182 238.182 130.6 242.6 130.6H311.6V145.6C311.6 150.018 315.182 153.6 319.6 153.6H334.6V222.6C334.6 227.018 331.018 230.6 326.6 230.6H242.6C238.182 230.6 234.6 227.018 234.6 222.6V138.6Z" />
+        <path fillOpacity="0.5" d="M319.6 153.6C315.182 153.6 311.6 150.018 311.6 145.6V130.6L334.6 153.6H319.6Z" />
+        <path fill="none" stroke="#18143C" strokeWidth="8" strokeLinejoin="round" d="M335.6 153.6L312.6 130.6H243.6C239.182 130.6 235.6 134.182 235.6 138.6V222.6C235.6 227.018 239.182 230.6 243.6 230.6H327.6C332.018 230.6 335.6 227.018 335.6 222.6V153.6ZM312.6 130.6V145.6C312.6 150.018 316.182 153.6 320.6 153.6H335.6" />
+        <path fill="none" stroke="#18143C" strokeWidth="13" strokeLinecap="round" d="M286.097 205.6V156.6" />
+        <path fill="none" stroke="#18143C" strokeWidth="13" strokeLinecap="round" d="M310.6 181.103L261.6 181.103" />
+      </g>
+    </svg>
+  )
+}
 function FeedNavIcon({ kind }: { kind: string }) {
   switch (kind) {
     case 'home': return <IconHome />
     case 'search': return <IconSearch />
     case 'doc': return <IconDoc />
+    case 'connect': return <IconConnect />
     case 'gear': return <IconGear />
     default: return null
   }
+}
+
+/* Glyphes des miniatures de Skills — vecteurs au trait dans le même esprit que les
+   icônes « Pourquoi Frank ? ». Les attributs de tracé (stroke courant, épaisseur,
+   bouts arrondis) sont posés sur le <svg> et hérités par les formes ; la couleur et
+   la lueur viennent du conteneur .ob-feed-thumb-ic. Clé inconnue → repli sur 'code'. */
+function SkillIcon({ kind }: { kind: string }) {
+  const dot = { fill: 'currentColor', stroke: 'none' } as const
+  const G: Record<string, React.JSX.Element> = {
+    code: <><polyline points="9 8 4 12 9 16" /><polyline points="15 8 20 12 15 16" /></>,
+    bug: <><ellipse cx="12" cy="13" rx="5" ry="6" /><line x1="12" y1="8" x2="12" y2="19" /><path d="M9 5l1.6 2.4M15 5l-1.6 2.4" /><path d="M3.5 11l3 1M20.5 11l-3 1M3.5 16.5l3-1M20.5 16.5l-3-1" /></>,
+    test: <><path d="M9 3h6" /><path d="M10.5 3v5L5.7 16.4a2 2 0 0 0 1.8 3h9a2 2 0 0 0 1.8-3L13.5 8V3" /><line x1="8" y1="15" x2="16" y2="15" /></>,
+    doc: <><path d="M14 3.5v4a1 1 0 0 0 1 1h4" /><path d="M18 8.5V19a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7Z" /><line x1="9" y1="12.5" x2="15" y2="12.5" /><line x1="9" y1="16" x2="13" y2="16" /></>,
+    eye: <><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.6" /></>,
+    wand: <><line x1="6" y1="18" x2="14.5" y2="9.5" /><path d="M17 4l.7 1.9L19.6 6.6l-1.9.7L17 9.2l-.7-1.9L14.4 6.6l1.9-.7Z" /><path d="M6 5l.5 1.3L7.8 6.8l-1.3.5L6 8.6l-.5-1.3L4.2 6.8l1.3-.5Z" /></>,
+    refresh: <><path d="M5 11a7 7 0 0 1 11.9-4.3L19 9" /><polyline points="19 4 19 9 14 9" /><path d="M19 13a7 7 0 0 1-11.9 4.3L5 15" /><polyline points="5 20 5 15 10 15" /></>,
+    database: <><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6" /><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></>,
+    branch: <><circle cx="7" cy="6" r="2" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="9" r="2" /><path d="M7 8v8" /><path d="M17 11a6 6 0 0 1-6 6H9" /></>,
+    palette: <><path d="M12 3a9 9 0 1 0 0 18c1.3 0 1.9-1 1.9-2 0-1.3 1-2 2.2-2H18a3 3 0 0 0 3-3c0-5-4-8-9-8Z" /><circle cx="8" cy="11.5" r="1.1" {...dot} /><circle cx="12" cy="8.5" r="1.1" {...dot} /><circle cx="16" cy="11.5" r="1.1" {...dot} /></>,
+    sparkles: <><path d="M12 4l1.7 4.3L18 10l-4.3 1.7L12 16l-1.7-4.3L6 10l4.3-1.7Z" /><path d="M18 15l.6 1.7L20.3 17.4l-1.7.6L18 19.7l-.6-1.7L15.7 17.4l1.7-.6Z" /></>,
+    scissors: <><circle cx="6" cy="7" r="2.2" /><circle cx="6" cy="17" r="2.2" /><line x1="8" y1="8.2" x2="20" y2="16" /><line x1="8" y1="15.8" x2="20" y2="8" /></>,
+    expand: <><polyline points="4 9 4 4 9 4" /><polyline points="20 9 20 4 15 4" /><polyline points="4 15 4 20 9 20" /><polyline points="20 15 20 20 15 20" /></>,
+    image: <><rect x="4" y="5" width="16" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M5 17l4.5-4.5 3 3L16 11l3 3" /></>,
+    layers: <><path d="M12 3l8 4-8 4-8-4 8-4Z" /><path d="M4 12l8 4 8-4" /><path d="M4 16.5l8 4 8-4" /></>,
+    grid: <><rect x="4" y="4" width="7" height="7" rx="1.3" /><rect x="13" y="4" width="7" height="7" rx="1.3" /><rect x="4" y="13" width="7" height="7" rx="1.3" /><rect x="13" y="13" width="7" height="7" rx="1.3" /></>,
+    play: <><circle cx="12" cy="12" r="8.5" /><path d="M10 8.5l5 3.5-5 3.5Z" {...dot} /></>,
+    shield: <><path d="M12 3l7 2.5v5c0 4.5-3 8-7 9.5-4-1.5-7-5-7-9.5v-5L12 3Z" /><path d="M9 12l2 2 4-4" /></>,
+    frame: <><rect x="4" y="4" width="16" height="16" rx="2" /><line x1="4" y1="9" x2="20" y2="9" /><line x1="9.5" y1="9" x2="9.5" y2="20" /></>,
+    text: <><path d="M6.5 7h11" /><path d="M12 7v11" /><path d="M9.5 18h5" /></>,
+    chart: <><path d="M4 4v16h16" /><polyline points="7 15 11 10 14 13 19 6" /></>,
+    flow: <><rect x="3" y="9" width="5" height="6" rx="1.2" /><rect x="16" y="4" width="5" height="5" rx="1.2" /><rect x="16" y="15" width="5" height="5" rx="1.2" /><path d="M8 12h4M12 12V6.5h4M12 12v5.5h4" /></>,
+    calendar: <><rect x="4" y="5" width="16" height="15" rx="2" /><line x1="4" y1="9.5" x2="20" y2="9.5" /><line x1="8" y1="3" x2="8" y2="6.5" /><line x1="16" y1="3" x2="16" y2="6.5" /><circle cx="9" cy="14" r="1" {...dot} /><circle cx="13" cy="14" r="1" {...dot} /></>,
+    megaphone: <><path d="M4 10v4a1 1 0 0 0 1 1h2l3.5 4V6L7 9H5a1 1 0 0 0-1 1Z" /><path d="M14 8.5a4 4 0 0 1 0 7" /><path d="M16.5 6a7 7 0 0 1 0 12" /></>,
+    search: <><circle cx="11" cy="11" r="6" /><line x1="15.5" y1="15.5" x2="20" y2="20" /></>,
+    mail: <><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M4 7.5l8 6 8-6" /></>,
+    hashtag: <><line x1="9.5" y1="4" x2="7.5" y2="20" /><line x1="17" y1="4" x2="15" y2="20" /><line x1="4" y1="9" x2="20" y2="9" /><line x1="3.5" y1="15" x2="19.5" y2="15" /></>,
+    split: <><rect x="4" y="5" width="7" height="14" rx="1.5" /><rect x="13" y="5" width="7" height="14" rx="1.5" /></>,
+    tag: <><path d="M4 12.5V5.5a1 1 0 0 1 1-1h7a1 1 0 0 1 .7.3l6.5 6.5a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0L4.3 13.2A1 1 0 0 1 4 12.5Z" /><circle cx="8.5" cy="8.5" r="1.3" /></>,
+    calculator: <><rect x="5" y="3" width="14" height="18" rx="2" /><rect x="8" y="6" width="8" height="3" rx="0.6" /><circle cx="9" cy="13" r="1" {...dot} /><circle cx="12" cy="13" r="1" {...dot} /><circle cx="15" cy="13" r="1" {...dot} /><circle cx="9" cy="17" r="1" {...dot} /><circle cx="12" cy="17" r="1" {...dot} /><circle cx="15" cy="17" r="1" {...dot} /></>,
+    receipt: <><path d="M6 3h12v18l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3L6 21V3Z" /><line x1="9" y1="8.5" x2="15" y2="8.5" /><line x1="9" y1="12.5" x2="15" y2="12.5" /></>,
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7}
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {G[kind] ?? G.code}
+    </svg>
+  )
 }
 
 export default function App() {

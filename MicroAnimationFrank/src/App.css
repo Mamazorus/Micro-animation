@@ -331,9 +331,9 @@
 .ob-feed-logo em {
   font-family: var(--font-voice);
   font-style: normal;
-  font-weight: 600;
+  font-weight: 500;
   color: #f6f6ff;
-  font-variation-settings: 'opsz' 40, 'wght' 600;
+  font-variation-settings: 'opsz' 40, 'wght' 500;
 }
 
 /* Porte-définitions du dégradé violet : hors flux, taille nulle (sinon le <svg>
@@ -382,6 +382,40 @@
 /* Actif : remplissages ET traits du glyphe passent au dégradé violet. */
 .ob-feed-navitem.is-active .ob-feed-navicon svg { fill: url(#feed-ic-grad); }
 .ob-feed-navitem.is-active .ob-feed-navicon svg .ob-navicon-line { stroke: url(#feed-ic-grad); }
+
+/* Micro-animations au survol (reprises de la planche Figma 975:825).
+   transform-box: fill-box → la rotation/le pivot se font autour du centre propre
+   de chaque pièce, indépendamment du viewBox de l'icône. */
+.ob-gear-spin,
+.ob-connect-plug {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ob-doc-back1,
+.ob-doc-back2 {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Engrenage : il tourne. */
+.ob-feed-navitem:hover .ob-gear-spin { transform: rotate(60deg); }
+/* Connecteur : le module « + » se détache et pivote, comme pour le brancher. */
+.ob-feed-navitem:hover .ob-connect-plug { transform: translate(34px, -40px) rotate(13deg); }
+/* Document : les feuilles du dessous se resserrent légèrement vers la feuille
+   avant, mais restent bien décalées (on n'annule qu'environ 40% de la cascade,
+   il reste ~1.1 u par feuille pour qu'on les voie nettement). */
+.ob-feed-navitem:hover .ob-doc-back1 { transform: translate(-0.5px, 0.5px); }
+.ob-feed-navitem:hover .ob-doc-back2 { transform: translate(-1px, 1px); }
+/* Loupe : fondu de la loupe simple vers la loupe « pieuvre » au survol. Les deux
+   états sont empilés dans la tuile ; on croise leurs opacités. */
+.ob-search-morph { position: relative; width: 100%; height: 100%; }
+.ob-search-morph svg {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.28s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ob-search-octo { opacity: 0; transform: scale(0.82); }
+.ob-feed-navitem:hover .ob-search-plain { opacity: 0; }
+.ob-feed-navitem:hover .ob-search-octo { opacity: 1; transform: scale(1); }
 
 .ob-feed-user { margin-top: auto; display: flex; align-items: center; gap: 14px; position: relative; }
 .ob-feed-avatar {
@@ -453,84 +487,112 @@
 
 .ob-mascot-overlay { position: fixed; inset: 0; z-index: 70; }
 
+/* Popover « change de tête » — surface glass de Frank : violet profond translucide,
+   lueur de bord interne, glow doux. */
 .ob-mascot-pop {
   position: absolute;
-  left: 0;
-  bottom: calc(100% + 14px);
+  left: -2px;
+  bottom: calc(100% + 16px);
   z-index: 71;
-  width: 196px;
+  width: 198px;
   box-sizing: border-box;
-  padding: 13px 13px 12px;
-  border-radius: 18px;
-  background: rgba(28, 24, 54, 0.74);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 22px rgba(94, 81, 241, 0.22);
+  padding: 14px 14px 12px;
+  border-radius: 20px;
+  background:
+    radial-gradient(125% 140% at 18% 0%,
+      rgba(124, 114, 235, 0.22) 0%,
+      rgba(74, 64, 190, 0.1) 42%,
+      transparent 72%),
+    rgba(20, 17, 42, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 22px 48px rgba(0, 0, 0, 0.55),
+    0 0 26px rgba(94, 81, 241, 0.2),
+    inset 0 1px 0 rgba(172, 165, 245, 0.22),
+    inset 0 -1px 0 rgba(172, 165, 245, 0.06);
   transform-origin: bottom left;
-  animation: mascotPopIn 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
-}
-/* Petite flèche pointant vers l'avatar */
-.ob-mascot-pop::after {
-  content: "";
-  position: absolute;
-  left: 21px;
-  bottom: -6px;
-  width: 12px;
-  height: 12px;
-  background: rgba(28, 24, 54, 0.74);
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  transform: rotate(45deg);
+  animation: mascotPopIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes mascotPopIn {
-  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.ob-mascot-pop-title {
-  margin: 0 0 10px;
+
+.ob-mascot-pop-head {
+  position: relative;
+  margin: 0 0 11px;
+  padding-left: 2px;
   font-family: var(--font-ui);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(246, 246, 255, 0.5);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: rgba(246, 246, 255, 0.92);
 }
-.ob-mascot-pop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.ob-mascot-choice {
+
+.ob-mascot-pop-grid {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 2px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: none;
-  cursor: pointer;
-  transition: background 0.15s ease;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 9px;
 }
-.ob-mascot-choice:hover { background: rgba(255, 255, 255, 0.06); }
-.ob-mascot-choice img {
-  width: 46px;
-  height: 46px;
-  box-sizing: border-box;
+.ob-mascot-choice {
+  position: relative;
+  width: 47px;
+  height: 47px;
   padding: 5px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 50%;
-  object-fit: contain;
-  background: radial-gradient(circle at 50% 35%, rgba(124, 114, 235, 0.3), rgba(11, 9, 27, 0.6));
-  border: 1.5px solid rgba(172, 165, 245, 0.25);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: radial-gradient(circle at 50% 30%, rgba(124, 114, 235, 0.18), rgba(11, 9, 27, 0.45));
+  cursor: pointer;
+  transition:
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
-.ob-mascot-choice span {
+.ob-mascot-choice img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ob-mascot-choice:hover {
+  transform: translateY(-2px);
+  border-color: rgba(172, 165, 245, 0.45);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4), 0 0 14px rgba(94, 81, 241, 0.35);
+}
+.ob-mascot-choice:focus-visible {
+  outline: none;
+  border-color: var(--violet-soft, #9a94e5);
+  box-shadow: 0 0 0 2px rgba(154, 148, 229, 0.6);
+}
+.ob-mascot-choice.is-active {
+  border-color: var(--violet, #5e51f1);
+  background: radial-gradient(circle at 50% 30%, rgba(124, 114, 235, 0.34), rgba(74, 64, 190, 0.18));
+  box-shadow:
+    0 0 0 1px var(--violet, #5e51f1),
+    0 0 16px rgba(94, 81, 241, 0.5),
+    inset 0 1px 2px rgba(172, 165, 245, 0.3);
+}
+
+/* Libellé dynamique : nom de la mascotte survolée (ou sélectionnée) */
+.ob-mascot-pop-name {
+  margin: 11px 0 1px;
+  text-align: center;
   font-family: var(--font-ui);
-  font-size: 10px;
-  color: rgba(246, 246, 255, 0.55);
-  transition: color 0.15s ease;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--violet-glow, #aca5f5);
+  min-height: 1em;
 }
-.ob-mascot-choice.is-active img {
-  border-color: rgba(172, 165, 245, 0.9);
-  box-shadow: 0 0 12px rgba(94, 81, 241, 0.6);
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-mascot-pop { animation: none; }
+  .ob-mascot-choice { transition: none; }
 }
-.ob-mascot-choice.is-active span { color: #f6f6ff; }
 
 /* Zone principale */
 .ob-feed-main {
@@ -589,6 +651,48 @@
   box-shadow: inset 0 0 18px rgba(94, 81, 241, 0.25), 0 0 14px rgba(94, 81, 241, 0.3);
 }
 .ob-feed-chip--more { color: rgba(246, 246, 255, 0.55); }
+/* Rangée rapide (domaine + IA perso) au-dessus du repli. Pas de gap : l'espacement
+   du panneau ouvert est porté par sa marge interne (animée avec lui) → fermé = 0 trace. */
+.ob-feed-filterbar { display: flex; flex-direction: column; }
+/* Chip d'IA : logo + nom alignés. */
+.ob-feed-chip--ai { display: inline-flex; align-items: center; gap: 8px; padding-left: 13px; }
+.ob-feed-chip-logo { width: 18px; height: 18px; object-fit: contain; }
+/* Repli animé : la hauteur s'interpole via grid-template-rows (0fr fermé → 1fr ouvert).
+   La grille du feed glisse donc en douceur à l'ouverture comme à la fermeture, sans saut.
+   L'opacité et un léger recul accompagnent le mouvement. */
+.ob-feed-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ob-feed-collapse.is-open { grid-template-rows: 1fr; opacity: 1; transform: none; }
+.ob-feed-collapse-inner { overflow: hidden; min-height: 0; }
+/* Panneau de filtres (choix des IA + attributs), surface vitrée discrète. */
+.ob-feed-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ob-feed-filter-group { display: flex; flex-direction: column; gap: 11px; }
+.ob-feed-filter-label {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(246, 246, 255, 0.4);
+}
+.ob-feed-filter-row { display: flex; flex-wrap: wrap; gap: 12px; }
 
 .ob-feed-grid {
   display: grid;
@@ -608,11 +712,68 @@
   -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 4px 17px rgba(172, 165, 245, 0.12);
 }
+/* Miniature du Skill : surface vitrée à dégradé océan (6 tonalités via data-tone),
+   glyphe au trait centré + lueur, et pastille de catégorie en bas. Tone 0 = base. */
 .ob-feed-thumb {
-  height: clamp(90px, 12vh, 130px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(96px, 12vh, 132px);
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(124, 114, 235, 0.22), rgba(40, 37, 77, 0.4));
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  background:
+    radial-gradient(120% 130% at 22% 18%, rgba(124, 114, 235, 0.45), transparent 60%),
+    linear-gradient(150deg, #2a2560, #14112e 70%);
+}
+.ob-feed-thumb[data-tone='1'] {
+  background:
+    radial-gradient(120% 130% at 22% 18%, rgba(96, 128, 240, 0.5), transparent 60%),
+    linear-gradient(150deg, #1f2a63, #121026 72%);
+}
+.ob-feed-thumb[data-tone='2'] {
+  background:
+    radial-gradient(120% 130% at 22% 18%, rgba(78, 196, 209, 0.42), transparent 60%),
+    linear-gradient(150deg, #143b50, #101427 72%);
+}
+.ob-feed-thumb[data-tone='3'] {
+  background:
+    radial-gradient(120% 130% at 22% 18%, rgba(214, 108, 224, 0.42), transparent 60%),
+    linear-gradient(150deg, #3a1f5e, #15112c 72%);
+}
+.ob-feed-thumb[data-tone='4'] {
+  background:
+    radial-gradient(120% 130% at 22% 18%, rgba(90, 108, 245, 0.5), transparent 62%),
+    linear-gradient(150deg, #211a4f, #0f0d22 72%);
+}
+.ob-feed-thumb[data-tone='5'] {
+  background:
+    radial-gradient(120% 130% at 22% 18%, rgba(168, 120, 240, 0.46), transparent 60%),
+    linear-gradient(150deg, #341d63, #14112e 72%);
+}
+.ob-feed-thumb-ic {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  color: #efeaff;
+  filter: drop-shadow(0 2px 10px rgba(94, 81, 241, 0.55));
+}
+.ob-feed-thumb-ic svg { width: 100%; height: 100%; }
+.ob-feed-thumb-cat {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  color: rgba(246, 246, 255, 0.85);
+  background: rgba(14, 12, 33, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .ob-feed-card-body { padding: 14px 4px 0; }
 .ob-feed-card-name {
@@ -630,6 +791,31 @@
   font-family: var(--font-ui);
   font-size: 13px;
   color: rgba(246, 246, 255, 0.45);
+}
+/* IA compatibles — petites pastilles de logos sous les méta. Rendent visible ce que
+   filtre le chip d'IA (« voici les Skills qui marchent avec Claude / ChatGPT… »). */
+.ob-feed-card-ais { display: flex; gap: 6px; margin-top: 9px; }
+.ob-feed-ai {
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  object-fit: contain;
+}
+/* État vide du feed : aucun Skill ne passe les filtres actifs (occupe les 2 colonnes). */
+.ob-feed-empty {
+  grid-column: 1 / -1;
+  margin: 8px 0;
+  padding: 40px 24px;
+  text-align: center;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  color: rgba(246, 246, 255, 0.55);
 }
 
 /* Badge « vérifié » sur les cartes du feed (3e différenciateur « Skills vérifiés ») :
@@ -713,6 +899,26 @@
   box-shadow: 0 10px 28px rgba(94, 81, 241, 0.28);
 }
 .ob-feed-card:hover .ob-feed-thumb { border-color: rgba(124, 114, 235, 0.3); }
+
+/* Entrée des cartes du feed. La classe is-revealed est posée par GSAP au moment où la
+   grille s'affiche (arrivée sur l'app) — JAMAIS au chargement (le conteneur est caché),
+   donc aucune carte ne flashe. Comme l'animation est portée par CSS et non par GSAP au
+   cas par cas, elle rejoue aussi sur les cartes qui (ré)apparaissent lors d'un filtrage :
+   cascade par nth-child (plafonnée à 8 pour ne pas trop retarder un changement de filtre). */
+@keyframes ob-feed-card-in {
+  from { opacity: 0; transform: translateY(22px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.ob-feed-grid.is-revealed .ob-feed-card {
+  animation: ob-feed-card-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ob-feed-grid.is-revealed .ob-feed-card:nth-child(2) { animation-delay: 0.06s; }
+.ob-feed-grid.is-revealed .ob-feed-card:nth-child(3) { animation-delay: 0.12s; }
+.ob-feed-grid.is-revealed .ob-feed-card:nth-child(4) { animation-delay: 0.18s; }
+.ob-feed-grid.is-revealed .ob-feed-card:nth-child(5) { animation-delay: 0.24s; }
+.ob-feed-grid.is-revealed .ob-feed-card:nth-child(6) { animation-delay: 0.3s; }
+.ob-feed-grid.is-revealed .ob-feed-card:nth-child(7) { animation-delay: 0.36s; }
+.ob-feed-grid.is-revealed .ob-feed-card:nth-child(n + 8) { animation-delay: 0.42s; }
 
 .ob-feed-install { transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.12s ease; }
 .ob-feed-install:hover {
@@ -798,6 +1004,8 @@
   .ob-feed-install.is-installed .ob-check-mark { animation: none; stroke-dashoffset: 0; }
   .ob-feed-install-spinsvg { animation-duration: 1.6s; }
   .ob-feed-install:active:not(:disabled) { transform: none; }
+  .ob-feed-grid.is-revealed .ob-feed-card { animation: none; }
+  .ob-feed-collapse { transition: none; }
 }
 
 .ob-feed-chip { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
@@ -976,8 +1184,11 @@
   color: #ededed;
 }
 
-/* Remplace le carré gris (placeholder Figma) par une surface vitrée + lueur */
+/* Cadre de la démo vidéo. Le dégradé reste en fond : fallback tant que la
+   vidéo n'est pas déposée, et derrière une éventuelle transparence. */
 .ob-why-card-media {
+  position: relative;
+  overflow: hidden;
   height: clamp(150px, 23vh, 256px);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -987,6 +1198,16 @@
       rgba(94, 81, 241, 0.1) 55%,
       transparent 100%),
     rgba(255, 255, 255, 0.03);
+}
+
+/* Boucle de présentation de la fonctionnalité (autoplay, muet, ~3 s) */
+.ob-why-card-video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 @media (max-width: 900px) {
