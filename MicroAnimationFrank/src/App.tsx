@@ -482,8 +482,8 @@ function Onboarding() {
     gsap.set(pwdFormEls, { autoAlpha: 0, y: 20 })
     gsap.set([planHeadRef.current, planNavRef.current], { autoAlpha: 0, y: 24 })
     gsap.set(planCards, { autoAlpha: 0, y: 24, scale: 0.96 })
-    gsap.set(feedSideRef.current, { autoAlpha: 0, x: -40 })
-    gsap.set(feedHeadRef.current, { autoAlpha: 0, y: 20 })
+    gsap.set(feedSideRef.current, { autoAlpha: 0 })
+    gsap.set(feedHeadRef.current, { autoAlpha: 0 })
     gsap.set(feedCards, { autoAlpha: 0, y: 24, scale: 0.97 })
 
     const applyMascotKind = (s: keyof typeof FRANK) => {
@@ -843,8 +843,8 @@ function Onboarding() {
       t.to(frank, { opacity: 0, duration: 0.4, ease: 'power2.in' }, 0.7)
 
       // L'app se matérialise : sidebar depuis la gauche, bandeau, puis cartes une à une
-      t.to(feedSideRef.current, { autoAlpha: 1, x: 0, duration: 0.6, ease: 'power3.out' }, 0.7)
-      t.to(feedHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.95)
+      t.to(feedSideRef.current, { autoAlpha: 1, duration: 0.6, ease: 'power3.out' }, 0.7)
+      t.to(feedHeadRef.current, { autoAlpha: 1, duration: 0.5, ease: 'power2.out' }, 0.95)
       t.to(feedCards, { autoAlpha: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.08, ease: 'back.out(1.3)' }, 1.1)
 
       return t
@@ -892,7 +892,7 @@ function Onboarding() {
       else if (startStep === 'present') gsap.set([presHeadRef.current, presBackRef.current, ...presFormEls], { autoAlpha: 1, y: 0 })
       else if (startStep === 'password') gsap.set([pwdHeadRef.current, pwdBackRef.current, ...pwdFormEls], { autoAlpha: 1, y: 0 })
       else if (startStep === 'plan') gsap.set([planHeadRef.current, planNavRef.current, ...planCards], { autoAlpha: 1, y: 0, scale: 1 })
-      else gsap.set([feedSideRef.current, feedHeadRef.current, ...feedCards], { autoAlpha: 1, x: 0, y: 0, scale: 1 })
+      else gsap.set([feedSideRef.current, feedHeadRef.current, ...feedCards], { autoAlpha: 1, y: 0, scale: 1 })
       buildSegments()
       if (frz !== null) {
         const seg = segsRef.current[Math.min(startIdx, segsRef.current.length - 1)]
