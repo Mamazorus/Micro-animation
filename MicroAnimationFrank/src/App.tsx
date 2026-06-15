@@ -53,9 +53,9 @@ const FRANK: Record<'intro' | Step, FrankState> = {
   welcome: fs(0,    -0.16,  1,    0),
   skill:   fs(0,     0.41,  2.3,  0),
   why:     fs(0.34, -0.32,  0.62, -4),
-  ia:      fs(-0.16, 0,     2.4,  5),
-  // Écran spécialité : Frank reste exactement où il était sur l'écran IA.
-  specialite: fs(-0.16, 0,  2.4,  5),
+  ia:      fs(-0.28, 0.22,  1.5,  5),
+  // Écran spécialité : Frank reste à gauche mais plus petit et plus bas pour ne pas déborder sur le texte.
+  specialite: fs(-0.28, 0.22,  1.5,  5),
   // Écran « Plus précisément ? » : Frank assez présent dans l'espace à gauche
   // (l'écran paraissait vide), derrière les cartes (z-order).
   precise: fs(-0.3,  0.12,  1.45, -3),
@@ -633,47 +633,34 @@ function Onboarding() {
     }
 
     // Segment 3 — « Quelles IA » → « Quelle est ta spécialité ? »
-    // « Frank part et revient » : il plonge par le bas en emportant les cartes
-    // IA, puis remonte exactement à la MÊME place en ramenant les cartes
-    // spécialité (sa position d'arrivée ne change pas). La traînée de bulles
-    // accompagne le trajet automatiquement (cf. trailEmitter).
+    // Frank glisse doucement vers sa position spécialité (plus petit, plus bas à gauche)
+    // pendant que le contenu change autour de lui.
     const buildIaSpecialite = () => {
       const h = window.innerHeight, w = window.innerWidth
       const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
 
-      // Sortie de l'écran IA — chips aspirées vers le bas (vers Frank)
+      // Sortie de l'écran IA
       t.to([iaNavRef.current, iaSkipRef.current],
         { autoAlpha: 0, y: 16, duration: 0.32, stagger: 0.06, ease: 'power2.in' }, 0)
       t.to(iaHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
-      t.to(iaChips, { autoAlpha: 0, y: 70, scale: 0.82, duration: 0.42, stagger: 0.04, ease: 'power2.in' }, 0)
+      t.to(iaChips, { autoAlpha: 0, y: 40, scale: 0.88, duration: 0.36, stagger: 0.03, ease: 'power2.in' }, 0)
 
-      // Frank plonge par le bas en les emportant, puis disparaît
-      const iaLeanOut = makeLean(frank, FRANK.ia.rot, FRANK.ia.rot, false)
-      t.to(frank, { duration: 0.7, ease: 'power2.in',
+      // Frank glisse vers sa pose spécialité (plus bas à gauche, plus petit)
+      const spLean = makeLean(frank, FRANK.ia.rot, FRANK.specialite.rot, true)
+      t.to(frank, { duration: 1.1, ease: 'sine.inOut',
+        scale: FRANK.specialite.scale, rotation: FRANK.specialite.rot,
         motionPath: { path: [
-          { x: FRANK.ia.x * w,            y: FRANK.ia.y * h },
-          { x: FRANK.ia.x * w + 0.05 * w, y: 0.5 * h },
-          { x: FRANK.ia.x * w,            y: 1.12 * h },
-        ], curviness: 1.3, autoRotate: false },
-        onStart: iaLeanOut.start, onUpdate: iaLeanOut.update }, 0.12)
-      t.to(frank, { opacity: 0, duration: 0.28, ease: 'power2.in' }, 0.46)
-
-      // Invisible : on le replace tout en bas, puis il remonte à la même place
-      t.set(frank, { x: FRANK.specialite.x * w, y: 1.14 * h, scale: FRANK.specialite.scale, rotation: FRANK.specialite.rot }, 0.76)
-      const spLeanIn = makeLean(frank, FRANK.specialite.rot, FRANK.specialite.rot, true)
-      t.to(frank, { duration: 0.95, ease: 'power3.out',
-        motionPath: { path: [
-          { x: FRANK.specialite.x * w, y: 1.14 * h },
+          { x: FRANK.ia.x * w,         y: FRANK.ia.y * h },
           { x: FRANK.specialite.x * w, y: FRANK.specialite.y * h },
-        ], autoRotate: false },
-        onStart: spLeanIn.start, onUpdate: spLeanIn.update }, 0.76)
-      t.to(frank, { opacity: FRANK.specialite.opacity, duration: 0.5, ease: 'power2.out' }, 0.82)
+        ], curviness: 1, autoRotate: false },
+        onStart: spLean.start, onUpdate: spLean.update }, 0.1)
+      t.to(frank, { opacity: FRANK.specialite.opacity, duration: 0.7, ease: 'power1.out' }, 0.2)
 
-      // Entrée de l'écran spécialité — les cartes éclosent pendant qu'il remonte
-      t.to(spHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.04)
-      t.to(spCards, { autoAlpha: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.05, ease: 'back.out(1.5)' }, 1.12)
+      // Entrée de l'écran spécialité
+      t.to(spHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.44)
+      t.to(spCards, { autoAlpha: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.05, ease: 'back.out(1.5)' }, 0.52)
       t.to([spSkipRef.current, spNavRef.current],
-        { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 1.22)
+        { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'power2.out' }, 0.68)
 
       return t
     }
@@ -1172,6 +1159,26 @@ function Onboarding() {
     segsRef.current[i].play()
   }
 
+  const goToPresent = () => {
+    if (animatingRef.current) return
+    const targetIdx = STEPS.indexOf('present')
+    const current = idxRef.current
+    if (current >= targetIdx) return
+    for (let k = current; k < targetIdx; k++) segsRef.current[k].progress(1)
+    idxRef.current = targetIdx
+    setStep('present')
+  }
+
+  const goToFeed = () => {
+    if (animatingRef.current) return
+    const targetIdx = STEPS.indexOf('feed')
+    const current = idxRef.current
+    if (current >= targetIdx) return
+    for (let k = current; k < targetIdx; k++) segsRef.current[k].progress(1)
+    idxRef.current = targetIdx
+    setStep('feed')
+  }
+
   const goPrev = () => {
     const i = idxRef.current
     if (animatingRef.current || i <= 0) return
@@ -1211,6 +1218,10 @@ function Onboarding() {
 
   return (
     <div className={`ob-root onboarding-bg is-${step}`}>
+      {step !== 'feed' && (
+        <button className="nav-btn" onClick={goToFeed}>Feed →</button>
+      )}
+
       {/* Décor océanique : masqué pendant le gros plan d'intro, révélé en fondu
           pendant le dézoom (cf. effet d'intro). La base sombre reste, elle, visible. */}
       <div ref={bgDecoRef} className="ob-bg-deco" aria-hidden="true" />
@@ -1266,7 +1277,7 @@ function Onboarding() {
 
       {/* Écran 2 — Un clic suffit */}
       <div className="ob-screen ob-screen--skill">
-        <button ref={skipRef} className="ob-skip">Passer</button>
+        <button ref={skipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={skillRef} className="ob-skill-content">
           <h1 className="ob-title ob-title--lg">Un clic suffit.</h1>
           <p className="ob-subtitle ob-subtitle--skill">
@@ -1279,7 +1290,7 @@ function Onboarding() {
 
       {/* Écran 3 — Pourquoi Frank ? */}
       <div className="ob-screen ob-screen--why">
-        <button ref={whySkipRef} className="ob-skip">Passer</button>
+        <button ref={whySkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={whyHeadRef} className="ob-why-head">
           <h1 className="ob-title ob-title--lg">Pourquoi <em>Frank</em>&nbsp;?</h1>
           <p className="ob-subtitle">Trois choses qui changent tout.</p>
@@ -1301,7 +1312,7 @@ function Onboarding() {
 
       {/* Écran 4 — Quelles IA tu utilises ? */}
       <div className="ob-screen ob-screen--ia">
-        <button ref={iaSkipRef} className="ob-skip">Passer</button>
+        <button ref={iaSkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={iaHeadRef} className="ob-ia-head">
           <h1 className="ob-title ob-title--lg">Quelles IA<br />tu utilises&nbsp;?</h1>
           <p className="ob-subtitle">Choix multiple. On adaptera tes Skills à chacune.</p>
@@ -1328,7 +1339,7 @@ function Onboarding() {
 
       {/* Écran 5 — Quelle est ta spécialité ? (cartes = composant partagé Specialties) */}
       <div className="ob-screen ob-screen--ia">
-        <button ref={spSkipRef} className="ob-skip">Passer</button>
+        <button ref={spSkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={spHeadRef} className="ob-ia-head">
           <h1 className="ob-title ob-title--lg">Quelle est ta<br />spécialité&nbsp;?</h1>
           <p className="ob-subtitle">Choisis tes domaines (plusieurs possibles).</p>
@@ -1355,7 +1366,7 @@ function Onboarding() {
 
       {/* Écran 6 — Plus précisément ? (tags multi-select groupés ; chips = .ob-ai-chip--tag) */}
       <div className="ob-screen ob-screen--ia">
-        <button ref={prSkipRef} className="ob-skip">Passer</button>
+        <button ref={prSkipRef} className="ob-skip" onClick={goToPresent}>Passer</button>
         <div ref={prHeadRef} className="ob-ia-head">
           <h1 className="ob-title ob-title--lg">Plus précisément&nbsp;?</h1>
           <p className="ob-subtitle">Choix multiple. On affinera tes Skills.</p>
@@ -1576,19 +1587,13 @@ function IconCheck() {
 
 export default function App() {
   const [page, setPage] = useState(
-    new URLSearchParams(window.location.search).get('view') === 'onboarding' ? 1 : 0,
+    new URLSearchParams(window.location.search).get('view') === 'grid' ? 1 : 0,
   )
-  const pages = [<OnboardingGrid key="grid" />, <Onboarding key="ob" />]
+  const pages = [<Onboarding key="ob" />, <OnboardingGrid key="grid" />]
 
   return (
     <>
       {pages[page]}
-      <button
-        className="nav-btn"
-        onClick={() => setPage(p => (p + 1) % pages.length)}
-      >
-        {page === 0 ? 'Onboarding' : 'Micro animation'}
-      </button>
     </>
   )
 }

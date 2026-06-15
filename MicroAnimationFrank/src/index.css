@@ -12,3 +12,13 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* Scrollbar native masquée globalement — elle n'existe que dans .ob-feed-main */
+html, body {
+  scrollbar-width: none;
+  overflow: hidden;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
