@@ -63,7 +63,8 @@
   width: calc(26vw * var(--ss, 1));
   max-width: calc(360px * var(--ss, 1));
   flex-shrink: 0;
-  will-change: transform, opacity;
+  /* will-change retiré : promouvait Frank sur un layer GPU isolé, ce qui empêchait
+     le backdrop-filter des cartes de voir Frank derrière elles en production. */
 }
 
 /* Wrapper du flottement idle (cf. startFloat) : même boîte que .ob-frank, sert de
@@ -73,7 +74,8 @@
   position: relative;
   width: 100%;
   transform-origin: 50% 51%;
-  will-change: transform;
+  /* will-change retiré : même raison que .ob-frank — isolait le layer GPU.
+     GSAP applique transform3d nativement, pas besoin de hint CSS ici. */
 }
 
 .ob-frank-svg {
