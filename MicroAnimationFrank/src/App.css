@@ -1223,14 +1223,214 @@
     rgba(255, 255, 255, 0.03);
 }
 
-/* Boucle de présentation de la fonctionnalité (autoplay, muet, ~3 s) */
-.ob-why-card-video {
+/* La carte capte le survol (l'écran .ob-screen est pointer-events:none par défaut) :
+   c'est lui qui lance/arrête la démo animée de la vignette. */
+.ob-why-card { pointer-events: auto; }
+
+/* ─── Démos animées des vignettes (curseur factice qui rejoue le geste clé) ─── */
+.wd-stage {
   position: absolute;
   inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Mini-carte de Skill rejouée dans la vignette « Installation en 1 clic » :
+   reprend le look des cartes du feed, en compact. */
+.wd-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(72%, 230px);
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+.wd-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    radial-gradient(130% 120% at 50% 0%, rgba(124, 114, 235, 0.12), transparent 70%),
+    #17142e;
+}
+.wd-thumb-ic { display: inline-flex; width: 26px; height: 26px; color: #b7afe6; }
+.wd-thumb-ic svg { width: 100%; height: 100%; }
+.wd-name {
+  margin: 10px 0 2px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  color: #f6f6ff;
+}
+.wd-meta {
+  margin: 0 0 11px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: rgba(246, 246, 255, 0.45);
+}
+/* Bouton install factice : les 3 états sont empilés, GSAP croise leurs opacités. */
+.wd-install {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 100px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  color: #f6f6ff;
+  background: radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.3), rgba(94, 81, 241, 0.2));
+  border: 1px solid rgba(124, 114, 235, 0.4);
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.wd-install.wd-done {
+  background: radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.55), rgba(94, 81, 241, 0.45));
+  border-color: rgba(124, 114, 235, 0.85);
+  box-shadow: 0 0 16px rgba(94, 81, 241, 0.45);
+}
+.wd-lbl {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.wd-lbl-ic { display: inline-flex; width: 16px; height: 16px; }
+.wd-lbl-ic svg { width: 100%; height: 100%; }
+
+/* Curseur factice. left/top animés par GSAP ; le scale du clic pivote sur la pointe. */
+.wd-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  margin: -2px 0 0 -2px;
+  transform-origin: 12% 8%;
+  pointer-events: none;
+  z-index: 5;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+  will-change: left, top, transform;
+}
+.wd-cursor-svg { display: block; }
+
+/* ─── Scène « Skills vérifiés » : double vérification + sceau mis en valeur ─── */
+.wd-card--verif { width: min(80%, 252px); }
+.wd-vrow { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+.wd-vic { width: 30px; height: 30px; flex: none; color: #b7afe6; }
+.wd-name--verif {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.1;
+}
+/* Sceau « Vérifié » + son halo (le halo, centré derrière, irradie au reveal). */
+.wd-seal-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.wd-seal {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  filter: drop-shadow(0 0 6px rgba(172, 165, 245, 0.7));
+}
+.wd-seal-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(172, 165, 245, 0.8), rgba(124, 114, 235, 0.25) 45%, transparent 72%);
+  pointer-events: none;
+}
+.wd-levels { display: flex; flex-direction: column; gap: 9px; }
+.wd-level {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: rgba(246, 246, 255, 0.85);
+}
+.wd-level-ic { display: inline-flex; width: 15px; height: 15px; flex: none; color: var(--violet-glow); }
+.wd-level-ic svg { width: 100%; height: 100%; }
+
+/* ─── Scène « Feed personnalisé » : un chip de domaine cliqué recompose la grille ─── */
+.wd-feed {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(86%, 296px);
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.wd-chips { display: flex; gap: 8px; justify-content: center; }
+.wd-chip {
+  padding: 5px 12px;
+  border-radius: 100px;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  line-height: 1;
+  color: rgba(246, 246, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: color 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.wd-chip-on {
+  color: #f6f6ff;
+  background: radial-gradient(120% 180% at 90% 10%, rgba(124, 114, 235, 0.45), rgba(94, 81, 241, 0.3));
+  border-color: rgba(124, 114, 235, 0.8);
+  box-shadow: 0 0 12px rgba(94, 81, 241, 0.4);
+}
+.wd-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.wd-tile {
+  position: relative;
+  height: 58px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    radial-gradient(130% 120% at 50% 0%, rgba(124, 114, 235, 0.1), transparent 70%),
+    #17142e;
+}
+.wd-tile-ic {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #b7afe6;
+}
+.wd-tile-ic svg { width: 26px; height: 26px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wd-cursor { display: none; }
+  .wd-install { transition: none; }
+  .wd-seal-halo { display: none; }
+  .wd-chip { transition: none; }
 }
 
 @media (max-width: 900px) {
@@ -1546,6 +1746,7 @@
 }
 
 .ob-pres-form .ob-input,
+.ob-pres-form .ob-pwd-toggle,
 .ob-pres-form .ob-check { pointer-events: auto; }
 
 .ob-field {
@@ -1583,6 +1784,36 @@
     0 6px 22px rgba(94, 81, 241, 0.4),
     inset 0 0 85px rgba(0, 0, 0, 0.2),
     inset 0 8px 21.7px rgba(172, 165, 245, 0.4);
+}
+
+/* Champ mot de passe : input + bouton œil superposé à droite. */
+.ob-pwd-wrap { position: relative; }
+/* Espace à droite pour que le texte ne passe pas sous le bouton. */
+.ob-input--pwd { padding-right: 60px; }
+
+.ob-pwd-toggle {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  color: rgba(246, 246, 255, 0.55);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.ob-pwd-toggle svg { width: 22px; height: 22px; }
+.ob-pwd-toggle:hover { color: #b8b4f0; background: rgba(124, 114, 235, 0.12); }
+.ob-pwd-toggle:focus-visible {
+  outline: none;
+  color: #b8b4f0;
+  box-shadow: 0 0 0 1.5px rgba(124, 114, 235, 0.8);
 }
 
 /* Checkbox CGU — case custom (l'input natif est masqué). */

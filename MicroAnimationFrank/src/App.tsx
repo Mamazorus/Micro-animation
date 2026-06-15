@@ -490,6 +490,9 @@ function Onboarding() {
   // Mot de passe « Créer ton mot de passe » (contrôlé)
   const [presPwd, setPresPwd] = useState('')
   const [presPwd2, setPresPwd2] = useState('')
+  // Visibilité des champs mot de passe (toggle œil), indépendante par champ.
+  const [showPwd, setShowPwd] = useState(false)
+  const [showPwd2, setShowPwd2] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   // Feed : filtres choisis (chips actifs) + affichage de filtres supplémentaires.
   const [feedFilters, setFeedFilters] = useState<Set<string>>(() => new Set())
@@ -1528,10 +1531,7 @@ function Onboarding() {
                 <p>{text}</p>
               </div>
               <div className="ob-why-card-media" aria-hidden="true">
-                <video className="ob-why-card-video" autoPlay loop muted playsInline preload="auto">
-                  <source src={`/assets/why/${key}.webm`} type="video/webm" />
-                  <source src={`/assets/why/${key}.mp4`} type="video/mp4" />
-                </video>
+                <WhyDemo demoKey={key} />
               </div>
             </article>
           ))}
@@ -1662,8 +1662,14 @@ function Onboarding() {
         <form ref={pwdFormRef} className="ob-pres-form" onSubmit={e => { e.preventDefault(); if (pwdValid) goNext() }}>
           <div className="ob-field">
             <label className="ob-pr-label" htmlFor="ob-pwd">Mot de passe</label>
-            <input id="ob-pwd" className="ob-input" type="password" autoComplete="new-password"
-              value={presPwd} onChange={e => setPresPwd(e.target.value)} />
+            <div className="ob-pwd-wrap">
+              <input id="ob-pwd" className="ob-input ob-input--pwd" type={showPwd ? 'text' : 'password'} autoComplete="new-password"
+                value={presPwd} onChange={e => setPresPwd(e.target.value)} />
+              <button type="button" className="ob-pwd-toggle" onClick={() => setShowPwd(v => !v)}
+                aria-label={showPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} aria-pressed={showPwd}>
+                {showPwd ? <IconEyeOff /> : <IconEye />}
+              </button>
+            </div>
             <div className="ob-pwd-meter" aria-hidden="true">
               <span className="ob-pwd-bar" data-score={presPwd ? pwdScore : 0} />
               <span className="ob-pwd-strength">{presPwd ? pwdStrength : ''}</span>
@@ -1676,8 +1682,14 @@ function Onboarding() {
           </div>
           <div className="ob-field">
             <label className="ob-pr-label" htmlFor="ob-pwd2">Confirmez le mot de passe</label>
-            <input id="ob-pwd2" className="ob-input" type="password" autoComplete="new-password"
-              value={presPwd2} onChange={e => setPresPwd2(e.target.value)} />
+            <div className="ob-pwd-wrap">
+              <input id="ob-pwd2" className="ob-input ob-input--pwd" type={showPwd2 ? 'text' : 'password'} autoComplete="new-password"
+                value={presPwd2} onChange={e => setPresPwd2(e.target.value)} />
+              <button type="button" className="ob-pwd-toggle" onClick={() => setShowPwd2(v => !v)}
+                aria-label={showPwd2 ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} aria-pressed={showPwd2}>
+                {showPwd2 ? <IconEyeOff /> : <IconEye />}
+              </button>
+            </div>
           </div>
         </form>
         <div ref={pwdBackRef} className="ob-pres-back" />
@@ -1907,6 +1919,319 @@ function Onboarding() {
   )
 }
 
+/* Curseur de souris factice qui pilote les démos des cartes « Pourquoi Frank ? ».
+   Flèche blanche cernée de sombre → lisible sur le fond océan. Pointe en haut-gauche
+   (origine ~0,0) : on l'aligne sur le point visé, le scale du clic pivote depuis la pointe. */
+function CursorArrow() {
+  return (
+    <svg className="wd-cursor-svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+      <path d="M3 2.5l0 16.2 4.1-3.9 2.5 5.4 2.7-1.2-2.4-5.2 5.6 0z"
+        fill="#f6f6ff" stroke="rgba(11,9,27,0.65)" strokeWidth="1" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/* Scène « Installation en 1 clic » : un curseur factice glisse jusqu'au bouton,
+   clique, et le bouton enchaîne idle → installation (spinner) → installé (coche
+   tracée + fond violet). Tout est piloté en GSAP (pas les classes d'état one-shot
+   du feed) pour que la boucle se rejoue proprement. Renvoie son nettoyage. */
+function setupInstallDemo(stage: HTMLElement): (() => void) | void {
+  const host = (stage.closest('.ob-why-card') as HTMLElement) ?? stage
+  const q = <T extends Element>(sel: string) => stage.querySelector(sel) as T
+  const cursor = q<HTMLElement>('.wd-cursor')
+  const btn = q<HTMLElement>('.wd-install')
+  const idle = q<HTMLElement>('.wd-lbl-idle')
+  const load = q<HTMLElement>('.wd-lbl-load')
+  const done = q<HTMLElement>('.wd-lbl-done')
+  const ring = q<SVGElement>('.ob-check-ring')
+  const mark = q<SVGElement>('.ob-check-mark')
+
+  const reset = () => {
+    gsap.killTweensOf([cursor, btn, idle, load, done])
+    btn.classList.remove('wd-done')
+    gsap.set(cursor, { opacity: 0, scale: 1, left: '84%', top: '92%' })
+    gsap.set(btn, { scale: 1 })
+    gsap.set(idle, { autoAlpha: 1 })
+    gsap.set([load, done], { autoAlpha: 0 })
+    gsap.set([ring, mark], { strokeDashoffset: 100 })
+  }
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    reset()
+    btn.classList.add('wd-done')
+    gsap.set(idle, { autoAlpha: 0 })
+    gsap.set(done, { autoAlpha: 1 })
+    gsap.set([ring, mark], { strokeDashoffset: 0 })
+    return
+  }
+
+  let tl: gsap.core.Timeline | null = null
+  const build = () => {
+    const s = stage.getBoundingClientRect()
+    const b = btn.getBoundingClientRect()
+    const start = { x: s.width * 0.84, y: s.height * 0.92 }
+    const target = { x: b.left + b.width / 2 - s.left, y: b.top + b.height * 0.5 - s.top }
+    reset()
+    gsap.set(cursor, { left: start.x, top: start.y })
+    tl = gsap.timeline({ repeat: -1, repeatDelay: 0.55, defaults: { ease: 'power2.inOut' } })
+    tl.to(cursor, { opacity: 1, duration: 0.22 })
+      .to(cursor, { left: target.x, top: target.y, duration: 0.72 })
+      // clic : enfoncement curseur + bouton
+      .to(cursor, { scale: 0.82, duration: 0.1 })
+      .to(btn, { scale: 0.95, duration: 0.1 }, '<')
+      .to(cursor, { scale: 1, duration: 0.16 })
+      .to(btn, { scale: 1, duration: 0.16 }, '<')
+      // idle → installation (spinner) ; le curseur repart
+      .to(idle, { autoAlpha: 0, duration: 0.16 })
+      .to(load, { autoAlpha: 1, duration: 0.16 }, '<')
+      .to(cursor, { left: start.x, top: start.y, opacity: 0, duration: 0.7, ease: 'power2.out' }, '<0.05')
+      .to({}, { duration: 0.85 })
+      // installation → installé (coche tracée + fond violet)
+      .to(load, { autoAlpha: 0, duration: 0.16 })
+      .add(() => btn.classList.add('wd-done'))
+      .to(done, { autoAlpha: 1, duration: 0.2 }, '<')
+      .fromTo(ring, { strokeDashoffset: 100 }, { strokeDashoffset: 0, duration: 0.34, ease: 'power1.inOut' }, '<')
+      .fromTo(mark, { strokeDashoffset: 100 }, { strokeDashoffset: 0, duration: 0.26, ease: 'power1.inOut' }, '<0.28')
+      .to({}, { duration: 1.05 })
+      // retour à l'état de départ pour la boucle suivante
+      .add(() => btn.classList.remove('wd-done'))
+      .to(done, { autoAlpha: 0, duration: 0.2 })
+      .to(idle, { autoAlpha: 1, duration: 0.2 }, '<')
+  }
+
+  const enter = () => { build(); tl?.play(0) }
+  const leave = () => { tl?.kill(); tl = null; reset() }
+  host.addEventListener('mouseenter', enter)
+  host.addEventListener('mouseleave', leave)
+  reset()
+  return () => {
+    host.removeEventListener('mouseenter', enter)
+    host.removeEventListener('mouseleave', leave)
+    tl?.kill()
+    gsap.killTweensOf([cursor, btn, idle, load, done])
+  }
+}
+
+/* Scène « Skills vérifiés » : la double vérification se joue (Niveau 1 puis
+   Niveau 2 : chaque coche se trace), puis le sceau « Vérifié » surgit près du nom
+   avec un effet de pop et un halo qui irradie → la certification est mise en valeur.
+   Aucun curseur : c'est Frank qui vérifie, pas un geste de l'utilisateur. */
+function setupVerifDemo(stage: HTMLElement): (() => void) | void {
+  const host = (stage.closest('.ob-why-card') as HTMLElement) ?? stage
+  const seal = stage.querySelector('.wd-seal') as HTMLElement
+  const halo = stage.querySelector('.wd-seal-halo') as HTMLElement
+  const levels = Array.from(stage.querySelectorAll<HTMLElement>('.wd-level'))
+  const rings = levels.map(l => l.querySelector('.ob-check-ring') as SVGElement)
+  const marks = levels.map(l => l.querySelector('.ob-check-mark') as SVGElement)
+  const draws = [...rings, ...marks]
+
+  const reset = () => {
+    gsap.killTweensOf([seal, halo, ...levels])
+    gsap.set(levels, { opacity: 0.32 })
+    gsap.set(seal, { autoAlpha: 0, scale: 0 })
+    gsap.set(halo, { autoAlpha: 0, scale: 0.4 })
+    gsap.set(draws, { strokeDashoffset: 100 })
+  }
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    reset()
+    gsap.set(levels, { opacity: 1 })
+    gsap.set(seal, { autoAlpha: 1, scale: 1 })
+    gsap.set(draws, { strokeDashoffset: 0 })
+    return
+  }
+
+  let tl: gsap.core.Timeline | null = null
+  const build = () => {
+    reset()
+    tl = gsap.timeline({ repeat: -1, repeatDelay: 0.7, defaults: { ease: 'power2.out' } })
+    tl.set(levels, { opacity: 0.32 })
+      .set(seal, { autoAlpha: 0, scale: 0 })
+      .set(halo, { autoAlpha: 0, scale: 0.4 })
+      .set(draws, { strokeDashoffset: 100 })
+    levels.forEach((lvl, i) => {
+      tl!.to(lvl, { opacity: 1, duration: 0.24 }, i === 0 ? '>' : '>0.12')
+        .fromTo(rings[i], { strokeDashoffset: 100 }, { strokeDashoffset: 0, duration: 0.32, ease: 'power1.inOut' }, '<0.04')
+        .fromTo(marks[i], { strokeDashoffset: 100 }, { strokeDashoffset: 0, duration: 0.26, ease: 'power1.inOut' }, '<0.2')
+    })
+    // la certification surgit et rayonne → mise en valeur
+    tl.to(seal, { autoAlpha: 1, scale: 1, duration: 0.55, ease: 'back.out(2.2)' }, '>0.12')
+      .fromTo(halo, { scale: 0.4, autoAlpha: 0.85 }, { scale: 2.6, autoAlpha: 0, duration: 0.85, ease: 'power2.out' }, '<')
+      .to({}, { duration: 1.1 })
+      // retour pour la boucle suivante
+      .to(seal, { autoAlpha: 0, scale: 0.55, duration: 0.35 })
+      .to(levels, { opacity: 0.32, duration: 0.35 }, '<')
+  }
+
+  const enter = () => { build(); tl?.play(0) }
+  const leave = () => { tl?.kill(); tl = null; reset() }
+  host.addEventListener('mouseenter', enter)
+  host.addEventListener('mouseleave', leave)
+  reset()
+  return () => {
+    host.removeEventListener('mouseenter', enter)
+    host.removeEventListener('mouseleave', leave)
+    tl?.kill()
+    gsap.killTweensOf([seal, halo, ...levels])
+  }
+}
+
+/* Scène « Feed personnalisé » : le curseur clique un chip de domaine (« Dev »),
+   le chip s'active et la grille de tuiles se recompose en cascade — les Skills
+   génériques sortent, ceux du domaine entrent → le feed s'adapte « à ton domaine ».
+   Deux couches d'icônes par tuile (a = générique, b = domaine) dont GSAP croise
+   l'opacité/scale ; pas de changement de DOM, la boucle se rejoue proprement. */
+function setupFeedDemo(stage: HTMLElement): (() => void) | void {
+  const host = (stage.closest('.ob-why-card') as HTMLElement) ?? stage
+  const cursor = stage.querySelector('.wd-cursor') as HTMLElement
+  const chips = Array.from(stage.querySelectorAll<HTMLElement>('.wd-chip'))
+  const tilesA = Array.from(stage.querySelectorAll<HTMLElement>('.wd-tile-a'))
+  const tilesB = Array.from(stage.querySelectorAll<HTMLElement>('.wd-tile-b'))
+  const chip = chips[0] // « Dev »
+
+  const reset = () => {
+    gsap.killTweensOf([cursor, ...tilesA, ...tilesB])
+    chips.forEach(c => c.classList.remove('wd-chip-on'))
+    gsap.set(cursor, { opacity: 0, scale: 1, left: '86%', top: '88%' })
+    gsap.set(tilesA, { autoAlpha: 1, scale: 1 })
+    gsap.set(tilesB, { autoAlpha: 0, scale: 0.6 })
+  }
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    reset()
+    chip.classList.add('wd-chip-on')
+    gsap.set(tilesA, { autoAlpha: 0 })
+    gsap.set(tilesB, { autoAlpha: 1, scale: 1 })
+    return
+  }
+
+  let tl: gsap.core.Timeline | null = null
+  const build = () => {
+    const s = stage.getBoundingClientRect()
+    const c = chip.getBoundingClientRect()
+    const start = { x: s.width * 0.86, y: s.height * 0.88 }
+    const target = { x: c.left + c.width / 2 - s.left, y: c.top + c.height * 0.5 - s.top }
+    reset()
+    gsap.set(cursor, { left: start.x, top: start.y })
+    tl = gsap.timeline({ repeat: -1, repeatDelay: 0.6, defaults: { ease: 'power2.inOut' } })
+    tl.to(cursor, { opacity: 1, duration: 0.22 })
+      .to(cursor, { left: target.x, top: target.y, duration: 0.7 })
+      // clic : enfoncement + activation du chip
+      .to(cursor, { scale: 0.82, duration: 0.1 })
+      .add(() => chip.classList.add('wd-chip-on'))
+      .to(cursor, { scale: 1, duration: 0.16 })
+      // le feed se recompose : générique sort, domaine entre (cascade)
+      .to(tilesA, { autoAlpha: 0, scale: 0.6, duration: 0.3, stagger: 0.06 }, '>')
+      .fromTo(tilesB, { autoAlpha: 0, scale: 0.6 },
+        { autoAlpha: 1, scale: 1, duration: 0.34, stagger: 0.07, ease: 'back.out(1.6)' }, '<0.12')
+      .to(cursor, { left: start.x, top: start.y, opacity: 0, duration: 0.7, ease: 'power2.out' }, '<0.05')
+      .to({}, { duration: 1.0 })
+      // retour à l'état de départ pour la boucle suivante
+      .add(() => chip.classList.remove('wd-chip-on'))
+      .to(tilesB, { autoAlpha: 0, scale: 0.6, duration: 0.28, stagger: 0.05 })
+      .to(tilesA, { autoAlpha: 1, scale: 1, duration: 0.3, stagger: 0.05 }, '<0.1')
+  }
+
+  const enter = () => { build(); tl?.play(0) }
+  const leave = () => { tl?.kill(); tl = null; reset() }
+  host.addEventListener('mouseenter', enter)
+  host.addEventListener('mouseleave', leave)
+  reset()
+  return () => {
+    host.removeEventListener('mouseenter', enter)
+    host.removeEventListener('mouseleave', leave)
+    tl?.kill()
+    gsap.killTweensOf([cursor, ...tilesA, ...tilesB])
+  }
+}
+
+/* Démos animées des cartes « Pourquoi Frank ? » (remplacent les rectangles vides).
+   Chaque scène rejoue le geste/évènement clé de sa fonctionnalité, en boucle TANT QUE
+   la carte est survolée (mouseenter → play, mouseleave → reset). */
+function WhyDemo({ demoKey }: { demoKey: string }) {
+  const stageRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const stage = stageRef.current
+    if (!stage) return
+    if (demoKey === 'install') return setupInstallDemo(stage)
+    if (demoKey === 'verif') return setupVerifDemo(stage)
+    if (demoKey === 'feed') return setupFeedDemo(stage)
+  }, [demoKey])
+
+  if (demoKey === 'install') {
+    return (
+      <div className="wd-stage wd-stage--install" ref={stageRef} aria-hidden="true">
+        <div className="wd-card">
+          <div className="wd-thumb"><span className="wd-thumb-ic"><SkillIcon kind="refresh" /></span></div>
+          <p className="wd-name">Refacto TypeScript</p>
+          <p className="wd-meta">★ 4.8 · 12k installs</p>
+          <div className="wd-install">
+            <span className="wd-lbl wd-lbl-idle">+ Installer</span>
+            <span className="wd-lbl wd-lbl-load"><span className="wd-lbl-ic"><IconInstallSpinner /></span></span>
+            <span className="wd-lbl wd-lbl-done"><span className="wd-lbl-ic"><IconInstallCheck /></span>Installé</span>
+          </div>
+        </div>
+        <span className="wd-cursor"><CursorArrow /></span>
+      </div>
+    )
+  }
+
+  if (demoKey === 'verif') {
+    return (
+      <div className="wd-stage wd-stage--verif" ref={stageRef} aria-hidden="true">
+        <div className="wd-card wd-card--verif">
+          <div className="wd-vrow">
+            <span className="wd-thumb-ic wd-vic"><SkillIcon kind="shield" /></span>
+            <p className="wd-name wd-name--verif">
+              Design system
+              <span className="wd-seal-wrap">
+                <span className="wd-seal-halo" />
+                <span className="wd-seal"><IconVerified /></span>
+              </span>
+            </p>
+          </div>
+          <div className="wd-levels">
+            <span className="wd-level"><span className="wd-level-ic"><IconInstallCheck /></span>Niveau 1 · Code vérifié</span>
+            <span className="wd-level"><span className="wd-level-ic"><IconInstallCheck /></span>Niveau 2 · Sûreté validée</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (demoKey === 'feed') {
+    return (
+      <div className="wd-stage wd-stage--feed" ref={stageRef} aria-hidden="true">
+        <div className="wd-feed">
+          <div className="wd-chips">
+            <span className="wd-chip">Dev</span>
+            <span className="wd-chip">UX</span>
+            <span className="wd-chip">Marketing</span>
+          </div>
+          <div className="wd-grid">
+            <div className="wd-tile">
+              <span className="wd-tile-ic wd-tile-a"><SkillIcon kind="palette" /></span>
+              <span className="wd-tile-ic wd-tile-b"><SkillIcon kind="refresh" /></span>
+            </div>
+            <div className="wd-tile">
+              <span className="wd-tile-ic wd-tile-a"><SkillIcon kind="megaphone" /></span>
+              <span className="wd-tile-ic wd-tile-b"><SkillIcon kind="bug" /></span>
+            </div>
+            <div className="wd-tile">
+              <span className="wd-tile-ic wd-tile-a"><SkillIcon kind="calculator" /></span>
+              <span className="wd-tile-ic wd-tile-b"><SkillIcon kind="branch" /></span>
+            </div>
+          </div>
+        </div>
+        <span className="wd-cursor"><CursorArrow /></span>
+      </div>
+    )
+  }
+
+  return null
+}
+
 /* Pictos des cartes « Pourquoi Frank ? » — repris tels quels du proto Figma
    (node 1329:2255 et 1329:2289, opération « Subtract ») : un disque plein #EDEDED
    dont le symbole est découpé en négatif (fill-rule evenodd) → il laisse voir la
@@ -2051,6 +2376,24 @@ function IconClose() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  )
+}
+/* Œil (mot de passe visible) et œil barré (masqué) — trait currentColor comme IconPen/IconClose. */
+function IconEye() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+function IconEyeOff() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.6 6.2A9.6 9.6 0 0 1 12 6c6.5 0 10 7 10 7a17.3 17.3 0 0 1-3.6 4.3M6.4 7.4A17.4 17.4 0 0 0 2 13s3.5 7 10 7a9.5 9.5 0 0 0 4-.9" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <path d="M3 3l18 18" />
     </svg>
   )
 }
