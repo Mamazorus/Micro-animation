@@ -1544,12 +1544,21 @@
   margin-top: 14px;
 }
 
-.ob-ia-grid {
+/* Colonne de droite : regroupe la grille de tuiles + le combobox « Autre » qui se
+   déplie dessous. Porte le positionnement (auparavant sur .ob-ia-grid) ; quand le
+   combobox apparaît, la colonne grandit et la grille se recentre doucement. */
+.ob-ia-col {
   position: absolute;
   top: 50%;
   right: 6vw;
   transform: translateY(-50%);
   width: min(44vw, 560px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ob-ia-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
@@ -1725,6 +1734,183 @@
   font-size: clamp(14px, 1.2vw, 18px);
   justify-content: center;
 }
+
+/* ─── Combobox « Autre » (écrans IA & spécialité) ────────────────────────────
+   Champ de saisie + menu déroulant déplié sous la grille, jetons des choix retenus.
+   Même DA sombre + lueur violette que les cartes .ob-ai-chip / .ob-input. */
+.ob-combo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: auto;
+  /* Apparition (sélection de « Autre ») : montée douce, jouée une fois.
+     backwards (PAS both) : sinon l'état final figé bloquerait le fondu de .is-hidden. */
+  animation: ob-combo-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  /* Retour sur l'écran (goPrev) : entrée en rebond, comme les tuiles. */
+  transition:
+    opacity 0.34s ease,
+    transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* Sortie de l'écran : même esprit que les tuiles (power2.in, descend + rétrécit),
+   pour fondre EN MÊME TEMPS que les cartes au lieu d'être coupé en fin de transition. */
+.ob-combo.is-hidden {
+  opacity: 0;
+  transform: translateY(28px) scale(0.92);
+  pointer-events: none;
+  transition:
+    opacity 0.32s cubic-bezier(0.55, 0.085, 0.68, 0.53),
+    transform 0.36s cubic-bezier(0.55, 0.085, 0.68, 0.53);
+}
+@keyframes ob-combo-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ob-combo-field { position: relative; }
+.ob-combo-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px 46px 16px 20px;
+  border: none;
+  border-radius: 14px;
+  background: #100e25;
+  color: #f6f6ff;
+  font-family: var(--font-ui);
+  font-size: clamp(15px, 1.2vw, 18px);
+  letter-spacing: -0.011em;
+  box-shadow:
+    0 4px 17.3px rgba(172, 165, 245, 0.24),
+    inset 0 0 85px rgba(0, 0, 0, 0.22),
+    inset 0 -8px 21.7px rgba(172, 165, 245, 0.1),
+    inset 0 8px 21.7px rgba(172, 165, 245, 0.3);
+  transition: box-shadow 0.25s ease;
+}
+.ob-combo-input::placeholder { color: rgba(255, 255, 255, 0.32); }
+.ob-combo-input:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 1.5px rgba(124, 114, 235, 0.8),
+    0 6px 22px rgba(94, 81, 241, 0.4),
+    inset 0 0 85px rgba(0, 0, 0, 0.2),
+    inset 0 8px 21.7px rgba(172, 165, 245, 0.4);
+}
+.ob-combo-caret {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: rgba(246, 246, 255, 0.5);
+  pointer-events: none;
+}
+.ob-combo-caret svg { width: 100%; height: 100%; }
+
+/* Menu déroulant : overlay glass sombre sous le champ (au-dessus des tuiles).
+   État de base = FERMÉ : porte aussi la transition de SORTIE (power2.in + fondu),
+   appliquée quand on retire .is-open. La visibility bascule en fin de fondu. */
+.ob-combo-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 256px;
+  overflow-y: auto;
+  border-radius: 14px;
+  background: #16133a;
+  box-shadow:
+    0 14px 38px rgba(0, 0, 0, 0.52),
+    0 0 0 1px rgba(124, 114, 235, 0.35),
+    inset 0 1px 0 rgba(172, 165, 245, 0.18);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 114, 235, 0.4) transparent;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px) scale(0.97);
+  transform-origin: top center;
+  transition:
+    opacity 0.18s ease,
+    transform 0.26s cubic-bezier(0.55, 0.085, 0.68, 0.53),
+    visibility 0s linear 0.26s;
+}
+/* OUVERT : transition d'ENTRÉE (rebond back.out, comme les tuiles des frames). */
+.ob-combo-menu.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity 0.22s ease,
+    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    visibility 0s;
+}
+.ob-combo-menu li { margin: 0; }
+.ob-combo-opt {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #ededed;
+  font-family: var(--font-ui);
+  font-size: 16px;
+  letter-spacing: -0.011em;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ob-combo-opt.is-active { background: rgba(124, 114, 235, 0.22); color: #f6f6ff; }
+.ob-combo-opt--add { color: #b3acf2; font-weight: 500; }
+
+/* Jetons des choix retenus (valeur + croix de retrait). Entrée en rebond
+   (back.out, comme les tuiles des frames) ; la SORTIE est jouée en GSAP
+   (power2.in) avant le démontage, cf. removeToken dans App.tsx. */
+.ob-combo-tokens { display: flex; flex-wrap: wrap; gap: 10px; }
+.ob-combo-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 11px;
+  background:
+    radial-gradient(120% 120% at 50% 0%, rgba(124, 114, 235, 0.28), rgba(16, 14, 37, 0) 70%),
+    #100e25;
+  color: #f6f6ff;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  letter-spacing: -0.011em;
+  box-shadow:
+    0 0 0 1px rgba(124, 114, 235, 0.55),
+    inset 0 6px 16px rgba(124, 114, 235, 0.3);
+  /* backwards (PAS both) : sinon l'état figé bloquerait la sortie GSAP au clic sur la croix. */
+  animation: ob-token-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+@keyframes ob-token-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.85); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ob-combo-token-x {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(246, 246, 255, 0.7);
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.ob-combo-token-x:hover { background: rgba(124, 114, 235, 0.55); color: #fff; }
+.ob-combo-token-x svg { width: 12px; height: 12px; }
 
 /* ─── Écran « On se présente » — formulaire ───────────────────────────────
    Titre en haut-gauche (réutilise .ob-ia-head) ; formulaire à droite ; Frank
@@ -2126,11 +2312,13 @@
 
 @media (max-width: 900px) {
   .ob-ia-head { right: 6vw; top: 7vh; }
-  .ob-ia-grid {
+  .ob-ia-col {
     position: static;
     transform: none;
     width: auto;
     margin: 34vh 6vw 0;
+  }
+  .ob-ia-grid {
     gap: 14px;
     grid-template-columns: 1fr 1fr;
   }

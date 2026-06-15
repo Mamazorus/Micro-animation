@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react'
 import gsap from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import OnboardingGrid from './OnboardingGrid'
@@ -115,6 +115,26 @@ const AI_OPTIONS = [
   { name: 'Mistral', logo: 'mistral' },
   { name: 'Copilot', logo: 'copilot' },
   { name: 'Autre', logo: 'autre' },
+]
+/* Noms des tuiles IA fixes : sert à distinguer les IA SAISIES à la main (« Autre »)
+   de celles déjà proposées en tuile, dans selectedAis (qui les contient toutes). */
+const AI_TILE_NAMES = new Set(AI_OPTIONS.map(o => o.name))
+
+/* Choix élargi du menu déroulant « Autre » — IA non affichées en tuile. L'utilisateur
+   peut aussi saisir une valeur libre (la liste n'est qu'une aide à la saisie). */
+const AI_MORE = [
+  'Perplexity', 'Grok', 'DeepSeek', 'Llama', 'Cursor', 'Midjourney', 'DALL-E',
+  'Stable Diffusion', 'Notion AI', 'Jasper', 'Suno', 'ElevenLabs', 'Runway', 'Sora',
+  'Qwen', 'Poe',
+]
+
+/* Choix élargi du menu déroulant « Autre » — domaines hors des spécialités en tuile. */
+const DOMAIN_MORE = [
+  'Rédaction', 'Copywriting', 'Traduction', 'Data Science', 'Cybersécurité',
+  'Product Management', 'Gestion de projet', 'Ressources humaines', 'Juridique',
+  'Vente', 'Support client', 'Comptabilité', 'Photographie', 'Vidéo',
+  'Audio / Musique', 'Architecture', 'Éducation', 'Recherche', 'E-commerce',
+  'Communication', 'Réseaux sociaux', 'Immobilier', 'Consulting', 'Santé',
 ]
 
 /* Écran « Choisis ton plan » — 3 offres (cartes glass). `popular` = mise en avant. */
@@ -403,6 +423,140 @@ function startFloat(el: gsap.TweenTarget) {
   return { driver, state }
 }
 
+/* ─── Combobox « Autre » ─────────────────────────────────────────────────────
+   Champ de saisie + menu déroulant (choix élargi) déplié sous la grille quand la
+   tuile « Autre » est sélectionnée (écrans IA et spécialité). On filtre la liste
+   en tapant, on choisit une suggestion OU on ajoute une valeur libre (Entrée /
+   ligne « Ajouter »). Les choix retenus s'affichent en jetons supprimables.
+   `active` (= écran courant) pilote le fondu de sortie quand on quitte l'écran :
+   GSAP n'anime pas ce bloc, donc on le masque nous-mêmes le temps de la transition. */
+function OtherCombobox({
+  active, placeholder, suggestions, values, onAdd, onRemove,
+}: {
+  active: boolean
+  placeholder: string
+  suggestions: string[]
+  values: string[]
+  onAdd: (v: string) => void
+  onRemove: (v: string) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(0)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  const q = query.trim().toLowerCase()
+  // Suggestions encore disponibles, filtrées par la saisie (insensible à la casse).
+  const matches = suggestions.filter(s => !values.includes(s) && s.toLowerCase().includes(q))
+  // Proposer l'ajout libre uniquement si la saisie ne correspond exactement à rien de connu.
+  const known = [...suggestions, ...values].some(s => s.toLowerCase() === q)
+  const canAddCustom = q.length > 0 && !known
+  // Lignes du menu : ajout libre éventuel en tête, puis suggestions (plafonnées).
+  const rows: { custom: boolean; label: string }[] = [
+    ...(canAddCustom ? [{ custom: true, label: query.trim() }] : []),
+    ...matches.slice(0, 8).map(label => ({ custom: false, label })),
+  ]
+
+  // Fermeture au clic extérieur. Le menu est en position:absolute dans le wrap (pas
+  // de position:fixed, qui serait confiné par le transform GSAP de l'écran) → OK.
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [open])
+
+  const commit = (label: string) => {
+    const v = label.trim()
+    setQuery('')
+    setActiveIdx(0)
+    if (!v || values.includes(v)) return
+    onAdd(v)
+  }
+
+  // Retrait d'un jeton : on JOUE d'abord la sortie (même esprit que les frames :
+  // power2.in, scale + fondu) PUIS on démonte (onRemove) à la fin, sinon React
+  // l'arracherait avant l'animation. removingRef évite de relancer sur double-clic.
+  const removingRef = useRef<Set<string>>(new Set())
+  const removeToken = (e: ReactMouseEvent<HTMLButtonElement>, v: string) => {
+    if (removingRef.current.has(v)) return
+    const node = (e.currentTarget as HTMLElement).closest('.ob-combo-token')
+    if (!node) { onRemove(v); return }
+    removingRef.current.add(v)
+    gsap.to(node, {
+      autoAlpha: 0, scale: 0.7, y: 8, duration: 0.3, ease: 'power2.in',
+      onComplete: () => { removingRef.current.delete(v); onRemove(v) },
+    })
+  }
+
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActiveIdx(i => Math.min(i + 1, rows.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)) }
+    else if (e.key === 'Enter') {
+      e.preventDefault()
+      const row = rows[activeIdx] ?? rows[0]
+      if (row) commit(row.label)
+    } else if (e.key === 'Escape') { setOpen(false) }
+  }
+
+  return (
+    <div ref={wrapRef} className={`ob-combo${active ? '' : ' is-hidden'}`}>
+      <div className="ob-combo-field">
+        <input
+          className="ob-combo-input"
+          type="text"
+          value={query}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          autoComplete="off"
+          onChange={e => { setQuery(e.target.value); setOpen(true); setActiveIdx(0) }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={onKeyDown}
+        />
+        <span className="ob-combo-caret" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </span>
+      </div>
+
+      {rows.length > 0 && (
+        <ul className={`ob-combo-menu${open && active ? ' is-open' : ''}`} role="listbox">
+          {rows.map((row, i) => (
+            <li key={(row.custom ? '+' : '') + row.label}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={i === activeIdx}
+                className={`ob-combo-opt${i === activeIdx ? ' is-active' : ''}${row.custom ? ' ob-combo-opt--add' : ''}`}
+                onMouseEnter={() => setActiveIdx(i)}
+                onClick={() => commit(row.label)}
+              >
+                {row.custom ? <>Ajouter «&nbsp;{row.label}&nbsp;»</> : row.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {values.length > 0 && (
+        <div className="ob-combo-tokens">
+          {values.map(v => (
+            <span key={v} className="ob-combo-token">
+              {v}
+              <button type="button" className="ob-combo-token-x" aria-label={`Retirer ${v}`} onClick={e => removeToken(e, v)}>
+                <IconClose />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Onboarding() {
   const frankRef = useRef<HTMLDivElement>(null)
   const frankFloatRef = useRef<HTMLDivElement>(null)
@@ -482,6 +636,9 @@ function Onboarding() {
   })
   const [selectedAis, setSelectedAis] = useState<Set<string>>(() => new Set())
   const [selectedSpecs, setSelectedSpecs] = useState<Set<Spec>>(() => new Set())
+  // Saisies « Autre » de domaines : Spec est un type fermé, donc les domaines libres
+  // vivent à part (les IA libres, elles, tiennent dans selectedAis qui est Set<string>).
+  const [customSpecs, setCustomSpecs] = useState<Set<string>>(() => new Set())
   const [selectedPrecise, setSelectedPrecise] = useState<Set<string>>(() => new Set())
   // Formulaire « On se présente » (contrôlé)
   const [presName, setPresName] = useState('')
@@ -533,7 +690,8 @@ function Onboarding() {
   // Groupes de « Plus précisément ? » propres au domaine principal choisi.
   const preciseGroups = PRECISE_BY_DOMAIN[primaryDomain]
   const userName = presName.trim() || 'toi'
-  const userAis = [...selectedAis].slice(0, 2).join(' + ') || 'tes IA'
+  // « Autre » est un conteneur, pas une IA : on l'exclut du texte (les IA saisies, elles, comptent).
+  const userAis = [...selectedAis].filter(a => a !== 'Autre').slice(0, 2).join(' + ') || 'tes IA'
 
   // Filtrage du feed par FACETTES. Trois familles de chips actifs :
   //   - domaine : le chip du domaine de l'utilisateur (un seul)
@@ -1421,20 +1579,35 @@ function Onboarding() {
   const toggleAi = (name: string) => {
     setSelectedAis(prev => {
       const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
+      if (next.has(name)) {
+        next.delete(name)
+        // Déselectionner « Autre » retire aussi les IA saisies à la main (leur conteneur s'en va).
+        if (name === 'Autre') for (const a of [...next]) if (!AI_TILE_NAMES.has(a)) next.delete(a)
+      } else next.add(name)
       return next
     })
   }
 
   // Spécialité = choix multiple (comme les IA) ; re-cliquer désélectionne.
-  const toggleSpec = (id: Spec) =>
+  const toggleSpec = (id: Spec) => {
     setSelectedSpecs(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
+    // Déselectionner « Autre » vide les domaines saisis à la main.
+    if (id === 'autre' && selectedSpecs.has('autre')) setCustomSpecs(new Set())
+  }
+
+  // IA saisies à la main = celles de selectedAis qui ne sont pas une tuile fixe.
+  const customAiTokens = [...selectedAis].filter(a => !AI_TILE_NAMES.has(a))
+  const addCustomAi = (v: string) => setSelectedAis(prev => new Set(prev).add(v))
+  const removeCustomAi = (v: string) =>
+    setSelectedAis(prev => { const n = new Set(prev); n.delete(v); return n })
+  const addCustomSpec = (v: string) => setCustomSpecs(prev => new Set(prev).add(v))
+  const removeCustomSpec = (v: string) =>
+    setCustomSpecs(prev => { const n = new Set(prev); n.delete(v); return n })
 
   // « Plus précisément ? » = tags multi-select groupés ; clé = `${groupe}|${option}`.
   const togglePrecise = (key: string) =>
@@ -1550,22 +1723,34 @@ function Onboarding() {
           <h1 className="ob-title ob-title--lg">Quelles IA<br />tu utilises&nbsp;?</h1>
           <p className="ob-subtitle">Choix multiple. On adaptera tes Skills à chacune.</p>
         </div>
-        <div ref={iaGridRef} className="ob-ia-grid">
-          {AI_OPTIONS.map(({ name, logo }) => {
-            const selected = selectedAis.has(name)
-            return (
-              <button
-                key={name}
-                type="button"
-                className={`ob-ai-chip${selected ? ' is-selected' : ''}`}
-                aria-pressed={selected}
-                onClick={() => toggleAi(name)}
-              >
-                <img className="ob-ai-logo" src={`/assets/ai-logos/${logo}.svg`} alt="" aria-hidden="true" />
-                <span className="ob-ai-name">{name}</span>
-              </button>
-            )
-          })}
+        <div className="ob-ia-col">
+          <div ref={iaGridRef} className="ob-ia-grid">
+            {AI_OPTIONS.map(({ name, logo }) => {
+              const selected = selectedAis.has(name)
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  className={`ob-ai-chip${selected ? ' is-selected' : ''}`}
+                  aria-pressed={selected}
+                  onClick={() => toggleAi(name)}
+                >
+                  <img className="ob-ai-logo" src={`/assets/ai-logos/${logo}.svg`} alt="" aria-hidden="true" />
+                  <span className="ob-ai-name">{name}</span>
+                </button>
+              )
+            })}
+          </div>
+          {selectedAis.has('Autre') && (
+            <OtherCombobox
+              active={step === 'ia'}
+              placeholder="Saisis ton IA"
+              suggestions={AI_MORE}
+              values={customAiTokens}
+              onAdd={addCustomAi}
+              onRemove={removeCustomAi}
+            />
+          )}
         </div>
         <div ref={iaNavRef} className="ob-nav" />
       </div>
@@ -1577,22 +1762,34 @@ function Onboarding() {
           <h1 className="ob-title ob-title--lg">Quelle est ta<br />spécialité&nbsp;?</h1>
           <p className="ob-subtitle">Choisis tes domaines (plusieurs possibles).</p>
         </div>
-        <div ref={spGridRef} className="ob-ia-grid">
-          {SPECIALITES.map(({ id, label }) => {
-            const active = selectedSpecs.has(id)
-            return (
-              <button
-                key={id}
-                type="button"
-                className={`ob-ai-chip${active ? ' is-selected' : ''}`}
-                aria-pressed={active}
-                onClick={() => toggleSpec(id)}
-              >
-                <span className="ob-sp-iconwrap"><SpecIconTile id={id} active={active} /></span>
-                <span className="ob-ai-name">{label}</span>
-              </button>
-            )
-          })}
+        <div className="ob-ia-col">
+          <div ref={spGridRef} className="ob-ia-grid">
+            {SPECIALITES.map(({ id, label }) => {
+              const active = selectedSpecs.has(id)
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`ob-ai-chip${active ? ' is-selected' : ''}`}
+                  aria-pressed={active}
+                  onClick={() => toggleSpec(id)}
+                >
+                  <span className="ob-sp-iconwrap"><SpecIconTile id={id} active={active} /></span>
+                  <span className="ob-ai-name">{label}</span>
+                </button>
+              )
+            })}
+          </div>
+          {selectedSpecs.has('autre') && (
+            <OtherCombobox
+              active={step === 'specialite'}
+              placeholder="Saisis ton domaine"
+              suggestions={DOMAIN_MORE}
+              values={[...customSpecs]}
+              onAdd={addCustomSpec}
+              onRemove={removeCustomSpec}
+            />
+          )}
         </div>
         <div ref={spNavRef} className="ob-nav" />
       </div>
