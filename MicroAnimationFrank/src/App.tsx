@@ -128,7 +128,7 @@ const PLANS = [
 ]
 
 /* Catalogue de Skills du feed. Chaque Skill porte de quoi composer sa MINIATURE
-   (icon = glyphe au trait, tone = tonalité de dégradé 0-5) ET de quoi faire
+   (icon = glyphe au trait, posé en sombre sur fond blanc) ET de quoi faire
    fonctionner les FILTRES :
    - domain : la spécialité à laquelle il se rattache (filtre « domaine »)
    - ais    : les IA compatibles (filtre par IA) — affichées en pastilles sur la carte
@@ -137,7 +137,7 @@ const PLANS = [
    cohérents (plus de tirage aléatoire : la liste est figée et lisible). */
 type SkillCat = 'code' | 'graphisme' | 'uiux' | 'marketing' | 'finance'
 type FeedSkill = {
-  name: string; domain: SkillCat; icon: string; tone: number
+  name: string; domain: SkillCat; icon: string
   ais: string[]; attrs: string[]; rating: string; installs: string
 }
 const CAT_LABEL: Record<SkillCat, string> = {
@@ -148,50 +148,50 @@ const AI_LOGO: Record<string, string> = Object.fromEntries(AI_OPTIONS.map(o => [
 
 const FEED_SKILLS: FeedSkill[] = [
   // Code
-  { name: 'Refacto TypeScript', domain: 'code', icon: 'refresh', tone: 1, ais: ['Claude', 'Copilot', 'Codex'], attrs: ['Populaire', 'Vérifié'], rating: '4.8', installs: '12k installs' },
-  { name: 'Chasseur de bugs', domain: 'code', icon: 'bug', tone: 3, ais: ['Claude', 'Codex', 'ChatGPT'], attrs: ['Populaire'], rating: '4.6', installs: '8k installs' },
-  { name: 'Tests unitaires auto', domain: 'code', icon: 'test', tone: 0, ais: ['Claude', 'Copilot'], attrs: ['Vérifié'], rating: '4.5', installs: '5.5k installs' },
-  { name: 'Docs de code', domain: 'code', icon: 'doc', tone: 2, ais: ['ChatGPT', 'Claude'], attrs: [], rating: '4.2', installs: '2.4k installs' },
-  { name: 'Revue de PR', domain: 'code', icon: 'eye', tone: 4, ais: ['Claude', 'Copilot', 'Codex'], attrs: ['Vérifié', 'Tendance'], rating: '4.7', installs: '3.2k installs' },
-  { name: 'Régex magique', domain: 'code', icon: 'wand', tone: 5, ais: ['ChatGPT', 'Mistral'], attrs: ['Récent'], rating: '4.1', installs: '900 installs' },
-  { name: 'Optimiseur SQL', domain: 'code', icon: 'database', tone: 1, ais: ['Claude', 'Codex'], attrs: ['Vérifié'], rating: '4.4', installs: '1.1k installs' },
-  { name: 'Messages de commit', domain: 'code', icon: 'branch', tone: 0, ais: ['Copilot', 'ChatGPT'], attrs: ['Populaire'], rating: '4.3', installs: '6k installs' },
+  { name: 'Refacto TypeScript', domain: 'code', icon: 'refresh', ais: ['Claude', 'Copilot', 'Codex'], attrs: ['Populaire', 'Vérifié'], rating: '4.8', installs: '12k installs' },
+  { name: 'Chasseur de bugs', domain: 'code', icon: 'bug', ais: ['Claude', 'Codex', 'ChatGPT'], attrs: ['Populaire'], rating: '4.6', installs: '8k installs' },
+  { name: 'Tests unitaires auto', domain: 'code', icon: 'test', ais: ['Claude', 'Copilot'], attrs: ['Vérifié'], rating: '4.5', installs: '5.5k installs' },
+  { name: 'Docs de code', domain: 'code', icon: 'doc', ais: ['ChatGPT', 'Claude'], attrs: [], rating: '4.2', installs: '2.4k installs' },
+  { name: 'Revue de PR', domain: 'code', icon: 'eye', ais: ['Claude', 'Copilot', 'Codex'], attrs: ['Vérifié', 'Tendance'], rating: '4.7', installs: '3.2k installs' },
+  { name: 'Régex magique', domain: 'code', icon: 'wand', ais: ['ChatGPT', 'Mistral'], attrs: ['Récent'], rating: '4.1', installs: '900 installs' },
+  { name: 'Optimiseur SQL', domain: 'code', icon: 'database', ais: ['Claude', 'Codex'], attrs: ['Vérifié'], rating: '4.4', installs: '1.1k installs' },
+  { name: 'Messages de commit', domain: 'code', icon: 'branch', ais: ['Copilot', 'ChatGPT'], attrs: ['Populaire'], rating: '4.3', installs: '6k installs' },
   // Graphisme
-  { name: 'Palette de couleurs', domain: 'graphisme', icon: 'palette', tone: 3, ais: ['ChatGPT', 'Gemini'], attrs: ['Populaire'], rating: '4.6', installs: '7k installs' },
-  { name: 'Générateur de logo', domain: 'graphisme', icon: 'sparkles', tone: 5, ais: ['Gemini', 'ChatGPT', 'Loveable'], attrs: ['Tendance'], rating: '4.8', installs: '9k installs' },
-  { name: 'Détourage auto', domain: 'graphisme', icon: 'scissors', tone: 2, ais: ['Gemini', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.5', installs: '5k installs' },
-  { name: 'Upscale 4K', domain: 'graphisme', icon: 'expand', tone: 1, ais: ['Gemini'], attrs: ['Récent'], rating: '4.4', installs: '2k installs' },
-  { name: 'Mockups produit', domain: 'graphisme', icon: 'image', tone: 0, ais: ['ChatGPT', 'Gemini', 'Loveable'], attrs: ['Populaire'], rating: '4.3', installs: '3.4k installs' },
-  { name: 'Style transfer', domain: 'graphisme', icon: 'layers', tone: 4, ais: ['Gemini'], attrs: ['Récent', 'Tendance'], rating: '4.0', installs: '1.2k installs' },
-  { name: "Banque d'icônes", domain: 'graphisme', icon: 'grid', tone: 2, ais: ['ChatGPT', 'Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '4k installs' },
-  { name: 'Presets motion', domain: 'graphisme', icon: 'play', tone: 5, ais: ['Gemini', 'Loveable'], attrs: ['Récent'], rating: '3.9', installs: '800 installs' },
+  { name: 'Palette de couleurs', domain: 'graphisme', icon: 'palette', ais: ['ChatGPT', 'Gemini'], attrs: ['Populaire'], rating: '4.6', installs: '7k installs' },
+  { name: 'Générateur de logo', domain: 'graphisme', icon: 'sparkles', ais: ['Gemini', 'ChatGPT', 'Loveable'], attrs: ['Tendance'], rating: '4.8', installs: '9k installs' },
+  { name: 'Détourage auto', domain: 'graphisme', icon: 'scissors', ais: ['Gemini', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.5', installs: '5k installs' },
+  { name: 'Upscale 4K', domain: 'graphisme', icon: 'expand', ais: ['Gemini'], attrs: ['Récent'], rating: '4.4', installs: '2k installs' },
+  { name: 'Mockups produit', domain: 'graphisme', icon: 'image', ais: ['ChatGPT', 'Gemini', 'Loveable'], attrs: ['Populaire'], rating: '4.3', installs: '3.4k installs' },
+  { name: 'Style transfer', domain: 'graphisme', icon: 'layers', ais: ['Gemini'], attrs: ['Récent', 'Tendance'], rating: '4.0', installs: '1.2k installs' },
+  { name: "Banque d'icônes", domain: 'graphisme', icon: 'grid', ais: ['ChatGPT', 'Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '4k installs' },
+  { name: 'Presets motion', domain: 'graphisme', icon: 'play', ais: ['Gemini', 'Loveable'], attrs: ['Récent'], rating: '3.9', installs: '800 installs' },
   // UI/UX
-  { name: "Audit d'accessibilité", domain: 'uiux', icon: 'shield', tone: 2, ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.7', installs: '6k installs' },
-  { name: 'Design system', domain: 'uiux', icon: 'layers', tone: 0, ais: ['Claude', 'ChatGPT', 'Loveable'], attrs: ['Vérifié'], rating: '4.6', installs: '5.2k installs' },
-  { name: 'Wireframe express', domain: 'uiux', icon: 'frame', tone: 1, ais: ['ChatGPT', 'Loveable', 'Gemini'], attrs: ['Populaire', 'Tendance'], rating: '4.5', installs: '4.4k installs' },
-  { name: 'Microcopy UX', domain: 'uiux', icon: 'text', tone: 3, ais: ['Claude', 'ChatGPT'], attrs: [], rating: '4.3', installs: '2k installs' },
-  { name: 'Insights & heatmap', domain: 'uiux', icon: 'chart', tone: 4, ais: ['ChatGPT', 'Gemini'], attrs: ['Récent'], rating: '4.2', installs: '1.5k installs' },
-  { name: 'Composants Figma', domain: 'uiux', icon: 'grid', tone: 5, ais: ['Loveable', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.6', installs: '8k installs' },
-  { name: 'Flow utilisateur', domain: 'uiux', icon: 'flow', tone: 1, ais: ['Claude', 'ChatGPT'], attrs: ['Récent', 'Tendance'], rating: '4.4', installs: '1.1k installs' },
-  { name: 'Contraste & WCAG', domain: 'uiux', icon: 'shield', tone: 0, ais: ['Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '3k installs' },
+  { name: "Audit d'accessibilité", domain: 'uiux', icon: 'shield', ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.7', installs: '6k installs' },
+  { name: 'Design system', domain: 'uiux', icon: 'layers', ais: ['Claude', 'ChatGPT', 'Loveable'], attrs: ['Vérifié'], rating: '4.6', installs: '5.2k installs' },
+  { name: 'Wireframe express', domain: 'uiux', icon: 'frame', ais: ['ChatGPT', 'Loveable', 'Gemini'], attrs: ['Populaire', 'Tendance'], rating: '4.5', installs: '4.4k installs' },
+  { name: 'Microcopy UX', domain: 'uiux', icon: 'text', ais: ['Claude', 'ChatGPT'], attrs: [], rating: '4.3', installs: '2k installs' },
+  { name: 'Insights & heatmap', domain: 'uiux', icon: 'chart', ais: ['ChatGPT', 'Gemini'], attrs: ['Récent'], rating: '4.2', installs: '1.5k installs' },
+  { name: 'Composants Figma', domain: 'uiux', icon: 'grid', ais: ['Loveable', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.6', installs: '8k installs' },
+  { name: 'Flow utilisateur', domain: 'uiux', icon: 'flow', ais: ['Claude', 'ChatGPT'], attrs: ['Récent', 'Tendance'], rating: '4.4', installs: '1.1k installs' },
+  { name: 'Contraste & WCAG', domain: 'uiux', icon: 'shield', ais: ['Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '3k installs' },
   // Marketing
-  { name: 'Calendrier social', domain: 'marketing', icon: 'calendar', tone: 0, ais: ['ChatGPT', 'Gemini'], attrs: ['Populaire'], rating: '4.4', installs: '5k installs' },
-  { name: 'Copywriting pub', domain: 'marketing', icon: 'megaphone', tone: 3, ais: ['Claude', 'ChatGPT'], attrs: ['Populaire', 'Vérifié'], rating: '4.6', installs: '7.5k installs' },
-  { name: 'Audit SEO', domain: 'marketing', icon: 'search', tone: 2, ais: ['ChatGPT', 'Gemini'], attrs: ['Vérifié', 'Tendance'], rating: '4.5', installs: '6k installs' },
-  { name: 'Séquences email', domain: 'marketing', icon: 'mail', tone: 1, ais: ['ChatGPT', 'Mistral'], attrs: [], rating: '4.2', installs: '2.2k installs' },
-  { name: 'Idées de posts', domain: 'marketing', icon: 'sparkles', tone: 5, ais: ['ChatGPT', 'Gemini', 'Mistral'], attrs: ['Populaire'], rating: '4.3', installs: '4.6k installs' },
-  { name: 'Analyse concurrence', domain: 'marketing', icon: 'eye', tone: 4, ais: ['Claude', 'ChatGPT'], attrs: ['Récent'], rating: '4.1', installs: '1.3k installs' },
-  { name: 'Hashtags & tendances', domain: 'marketing', icon: 'hashtag', tone: 5, ais: ['ChatGPT', 'Gemini'], attrs: ['Tendance', 'Récent'], rating: '4.0', installs: '900 installs' },
-  { name: 'Landing A/B', domain: 'marketing', icon: 'split', tone: 1, ais: ['ChatGPT', 'Loveable'], attrs: ['Vérifié'], rating: '4.4', installs: '2.8k installs' },
+  { name: 'Calendrier social', domain: 'marketing', icon: 'calendar', ais: ['ChatGPT', 'Gemini'], attrs: ['Populaire'], rating: '4.4', installs: '5k installs' },
+  { name: 'Copywriting pub', domain: 'marketing', icon: 'megaphone', ais: ['Claude', 'ChatGPT'], attrs: ['Populaire', 'Vérifié'], rating: '4.6', installs: '7.5k installs' },
+  { name: 'Audit SEO', domain: 'marketing', icon: 'search', ais: ['ChatGPT', 'Gemini'], attrs: ['Vérifié', 'Tendance'], rating: '4.5', installs: '6k installs' },
+  { name: 'Séquences email', domain: 'marketing', icon: 'mail', ais: ['ChatGPT', 'Mistral'], attrs: [], rating: '4.2', installs: '2.2k installs' },
+  { name: 'Idées de posts', domain: 'marketing', icon: 'sparkles', ais: ['ChatGPT', 'Gemini', 'Mistral'], attrs: ['Populaire'], rating: '4.3', installs: '4.6k installs' },
+  { name: 'Analyse concurrence', domain: 'marketing', icon: 'eye', ais: ['Claude', 'ChatGPT'], attrs: ['Récent'], rating: '4.1', installs: '1.3k installs' },
+  { name: 'Hashtags & tendances', domain: 'marketing', icon: 'hashtag', ais: ['ChatGPT', 'Gemini'], attrs: ['Tendance', 'Récent'], rating: '4.0', installs: '900 installs' },
+  { name: 'Landing A/B', domain: 'marketing', icon: 'split', ais: ['ChatGPT', 'Loveable'], attrs: ['Vérifié'], rating: '4.4', installs: '2.8k installs' },
   // Finance
-  { name: 'Prévisions de trésorerie', domain: 'finance', icon: 'chart', tone: 1, ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.6', installs: '4k installs' },
-  { name: 'Catégorisation dépenses', domain: 'finance', icon: 'tag', tone: 2, ais: ['ChatGPT', 'Mistral'], attrs: [], rating: '4.3', installs: '2.5k installs' },
-  { name: 'Modèle DCF', domain: 'finance', icon: 'calculator', tone: 0, ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié'], rating: '4.5', installs: '1.6k installs' },
-  { name: 'Rapport mensuel auto', domain: 'finance', icon: 'doc', tone: 3, ais: ['Claude', 'ChatGPT', 'Mistral'], attrs: ['Populaire'], rating: '4.4', installs: '3.1k installs' },
-  { name: 'Veille marché', domain: 'finance', icon: 'eye', tone: 4, ais: ['ChatGPT', 'Gemini'], attrs: ['Récent', 'Tendance'], rating: '4.2', installs: '1.2k installs' },
-  { name: 'Analyse de risque', domain: 'finance', icon: 'shield', tone: 1, ais: ['Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '1.9k installs' },
-  { name: 'Facturation auto', domain: 'finance', icon: 'receipt', tone: 5, ais: ['ChatGPT', 'Mistral'], attrs: ['Populaire'], rating: '4.3', installs: '5.5k installs' },
-  { name: 'Tableau de bord KPI', domain: 'finance', icon: 'grid', tone: 0, ais: ['ChatGPT', 'Gemini', 'Claude'], attrs: ['Vérifié', 'Tendance'], rating: '4.6', installs: '6.2k installs' },
+  { name: 'Prévisions de trésorerie', domain: 'finance', icon: 'chart', ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié', 'Populaire'], rating: '4.6', installs: '4k installs' },
+  { name: 'Catégorisation dépenses', domain: 'finance', icon: 'tag', ais: ['ChatGPT', 'Mistral'], attrs: [], rating: '4.3', installs: '2.5k installs' },
+  { name: 'Modèle DCF', domain: 'finance', icon: 'calculator', ais: ['Claude', 'ChatGPT'], attrs: ['Vérifié'], rating: '4.5', installs: '1.6k installs' },
+  { name: 'Rapport mensuel auto', domain: 'finance', icon: 'doc', ais: ['Claude', 'ChatGPT', 'Mistral'], attrs: ['Populaire'], rating: '4.4', installs: '3.1k installs' },
+  { name: 'Veille marché', domain: 'finance', icon: 'eye', ais: ['ChatGPT', 'Gemini'], attrs: ['Récent', 'Tendance'], rating: '4.2', installs: '1.2k installs' },
+  { name: 'Analyse de risque', domain: 'finance', icon: 'shield', ais: ['Claude'], attrs: ['Vérifié'], rating: '4.5', installs: '1.9k installs' },
+  { name: 'Facturation auto', domain: 'finance', icon: 'receipt', ais: ['ChatGPT', 'Mistral'], attrs: ['Populaire'], rating: '4.3', installs: '5.5k installs' },
+  { name: 'Tableau de bord KPI', domain: 'finance', icon: 'grid', ais: ['ChatGPT', 'Gemini', 'Claude'], attrs: ['Vérifié', 'Tendance'], rating: '4.6', installs: '6.2k installs' },
 ]
 /* IA proposées au filtre du feed : uniquement celles qui ont au moins un Skill dans le
    catalogue (exclut « Autre », sans Skill → éviterait un feed vide), ordre d'AI_OPTIONS. */
@@ -453,6 +453,9 @@ function Onboarding() {
   const feedSideRef = useRef<HTMLDivElement>(null)
   const feedHeadRef = useRef<HTMLDivElement>(null)
   const feedCardsRef = useRef<HTMLDivElement>(null)
+  // Sélecteur de mascotte : refs pour le clic-extérieur (cf. useEffect plus bas).
+  const mascotPopRef = useRef<HTMLDivElement>(null)
+  const mascotBtnRef = useRef<HTMLButtonElement>(null)
   // Bulles d'interrogation (transition « Pourquoi Frank ? » → IA)
   const bubblesRef = useRef<HTMLDivElement>(null)
   // Traînée de bulles laissée par Frank pendant ses déplacements
@@ -578,12 +581,28 @@ function Onboarding() {
     }
   }, [step])
 
-  // Sélecteur de mascotte : fermeture à la touche Échap quand il est ouvert.
+  // Sélecteur de mascotte : fermeture à la touche Échap ET au clic en dehors du
+  // popover. On écoute `document` plutôt qu'un overlay `position: fixed` : la sidebar
+  // (.ob-feed-side) porte un transform GSAP permanent (x:0), qui confinerait tout
+  // fixed à sa boîte → l'overlay ne couvrait que la sidebar. Le listener global est
+  // insensible au transform/stacking et ferme depuis n'importe où dans le document.
   useEffect(() => {
     if (!mascotPickerOpen) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMascotPickerOpen(false) }
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node
+      // Clic dans le popover → on laisse les boutons (croix, choix) gérer.
+      if (mascotPopRef.current?.contains(t)) return
+      // Clic sur l'avatar → son propre onClick gère le toggle (pas de double bascule).
+      if (mascotBtnRef.current?.contains(t)) return
+      setMascotPickerOpen(false)
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onPointerDown)
+    }
   }, [mascotPickerOpen])
 
   // useLayoutEffect (et non useEffect) : on pose les autoAlpha:0 et le --ss AVANT le premier
@@ -1633,7 +1652,6 @@ function Onboarding() {
       <div className="ob-screen ob-screen--ia">
         <div ref={planHeadRef} className="ob-plan-head">
           <h1 className="ob-title ob-title--lg">Choisis ton plan</h1>
-          <p className="ob-subtitle"><strong>7 jours offerts</strong> sur Frank. Sans engagement, annule quand tu veux.</p>
         </div>
         <div ref={planCardsRef} className="ob-plans">
           {PLANS.map(plan => (
@@ -1682,6 +1700,7 @@ function Onboarding() {
           </nav>
           <div className="ob-feed-user">
             <button
+              ref={mascotBtnRef}
               type="button"
               className="ob-feed-avatar-btn"
               aria-label="Changer de mascotte"
@@ -1698,33 +1717,38 @@ function Onboarding() {
             </span>
 
             {mascotPickerOpen && (
-              <>
-                <div className="ob-mascot-overlay" onClick={() => setMascotPickerOpen(false)} />
-                <div className="ob-mascot-pop" role="menu" aria-label="Choisir une mascotte">
-                  <p className="ob-mascot-pop-head">Change de tête</p>
-                  <div className="ob-mascot-pop-grid" onMouseLeave={() => setPickerHover(null)}>
-                    {MASCOT_CHOICES.map(c => (
-                      <button
-                        key={c.mascot}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={shownMascot === c.mascot}
-                        aria-label={c.label}
-                        title={c.label}
-                        className={`ob-mascot-choice${shownMascot === c.mascot ? ' is-active' : ''}`}
-                        onMouseEnter={() => setPickerHover(c.mascot)}
-                        onFocus={() => setPickerHover(c.mascot)}
-                        onClick={() => { setMascotOverride(c.mascot); setMascotPickerOpen(false) }}
-                      >
-                        <img src={`/assets/mascots/${c.mascot}.svg`} alt="" aria-hidden="true" />
-                      </button>
-                    ))}
-                  </div>
-                  <p className="ob-mascot-pop-name">
-                    {MASCOT_CHOICES.find(c => c.mascot === (pickerHover ?? shownMascot))?.label}
-                  </p>
+              <div ref={mascotPopRef} className="ob-mascot-pop" role="menu" aria-label="Choisir une mascotte">
+                <button
+                  type="button"
+                  className="ob-mascot-pop-close"
+                  aria-label="Fermer"
+                  onClick={() => setMascotPickerOpen(false)}
+                >
+                  <IconClose />
+                </button>
+                <p className="ob-mascot-pop-head">Change de tête</p>
+                <div className="ob-mascot-pop-grid" onMouseLeave={() => setPickerHover(null)}>
+                  {MASCOT_CHOICES.map(c => (
+                    <button
+                      key={c.mascot}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={shownMascot === c.mascot}
+                      aria-label={c.label}
+                      title={c.label}
+                      className={`ob-mascot-choice${shownMascot === c.mascot ? ' is-active' : ''}`}
+                      onMouseEnter={() => setPickerHover(c.mascot)}
+                      onFocus={() => setPickerHover(c.mascot)}
+                      onClick={() => { setMascotOverride(c.mascot); setMascotPickerOpen(false) }}
+                    >
+                      <img src={`/assets/mascots/${c.mascot}.svg`} alt="" aria-hidden="true" />
+                    </button>
+                  ))}
                 </div>
-              </>
+                <p className="ob-mascot-pop-name">
+                  {MASCOT_CHOICES.find(c => c.mascot === (pickerHover ?? shownMascot))?.label}
+                </p>
+              </div>
             )}
           </div>
         </aside>
@@ -1780,7 +1804,7 @@ function Onboarding() {
               return (
                 <article key={skill.name} className={`ob-feed-card${istate === 'installed' ? ' is-owned' : ''}`}>
                   {/* Miniature : dégradé océan (tonalité), glyphe au trait du Skill + catégorie */}
-                  <div className="ob-feed-thumb" data-tone={skill.tone} aria-hidden="true">
+                  <div className="ob-feed-thumb" aria-hidden="true">
                     <span className="ob-feed-thumb-ic"><SkillIcon kind={skill.icon} /></span>
                     <span className="ob-feed-thumb-cat">{CAT_LABEL[skill.domain]}</span>
                   </div>
@@ -1987,6 +2011,13 @@ function IconPen() {
     </svg>
   )
 }
+function IconClose() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  )
+}
 /* Connecteurs (Figma node 975:679) : 2×2 modules — 3 carrés pleins + un module
    « + » à coin plié en haut-droite. Repère du proto à grande échelle (viewBox 400).
    Traits de séparation et « + » sombres (#18143C), comme le document. Le module
@@ -2023,8 +2054,8 @@ function FeedNavIcon({ kind }: { kind: string }) {
 
 /* Glyphes des miniatures de Skills — vecteurs au trait dans le même esprit que les
    icônes « Pourquoi Frank ? ». Les attributs de tracé (stroke courant, épaisseur,
-   bouts arrondis) sont posés sur le <svg> et hérités par les formes ; la couleur et
-   la lueur viennent du conteneur .ob-feed-thumb-ic. Clé inconnue → repli sur 'code'. */
+   bouts arrondis) sont posés sur le <svg> et hérités par les formes ; la couleur
+   (sombre) vient du conteneur .ob-feed-thumb-ic. Clé inconnue → repli sur 'code'. */
 function SkillIcon({ kind }: { kind: string }) {
   const dot = { fill: 'currentColor', stroke: 'none' } as const
   const G: Record<string, React.JSX.Element> = {

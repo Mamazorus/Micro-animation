@@ -485,8 +485,6 @@
   box-shadow: 0 0 12px rgba(94, 81, 241, 0.85);
 }
 
-.ob-mascot-overlay { position: fixed; inset: 0; z-index: 70; }
-
 /* Popover « change de tête » — surface glass de Frank : violet profond translucide,
    lueur de bord interne, glow doux. */
 .ob-mascot-pop {
@@ -518,6 +516,42 @@
 @keyframes mascotPopIn {
   from { opacity: 0; transform: translateY(10px) scale(0.94); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Croix de fermeture — pastille glass discrète en haut à droite du popover */
+.ob-mascot-pop-close {
+  position: absolute;
+  /* z-index : le titre .ob-mascot-pop-head suit la croix dans le DOM et est aussi
+     positionné (z auto) → sa boîte pleine largeur se peignait PAR-DESSUS la croix et
+     avalait les clics (seul le liseré dépassant en haut restait cliquable). On repasse
+     la croix au-dessus de tous les frères du popover. */
+  z-index: 2;
+  top: 9px;
+  right: 9px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: rgba(246, 246, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.ob-mascot-pop-close svg { width: 12px; height: 12px; display: block; }
+.ob-mascot-pop-close:hover {
+  color: #f6f6ff;
+  background: rgba(124, 114, 235, 0.28);
+  border-color: rgba(172, 165, 245, 0.45);
+  box-shadow: 0 0 12px rgba(94, 81, 241, 0.4);
+}
+.ob-mascot-pop-close:focus-visible {
+  outline: none;
+  border-color: var(--violet-soft, #9a94e5);
+  box-shadow: 0 0 0 2px rgba(154, 148, 229, 0.6);
 }
 
 .ob-mascot-pop-head {
@@ -592,6 +626,7 @@
 @media (prefers-reduced-motion: reduce) {
   .ob-mascot-pop { animation: none; }
   .ob-mascot-choice { transition: none; }
+  .ob-mascot-pop-close { transition: none; }
 }
 
 /* Zone principale */
@@ -712,8 +747,9 @@
   -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 4px 17px rgba(172, 165, 245, 0.12);
 }
-/* Miniature du Skill : surface vitrée à dégradé océan (6 tonalités via data-tone),
-   glyphe au trait centré + lueur, et pastille de catégorie en bas. Tone 0 = base. */
+/* Miniature du Skill : tuile sombre UNIFORME (une seule teinte, dans la DA océan),
+   glyphe au trait lilas doux centré, pastille de catégorie discrète. Une très légère
+   lumière en haut donne un soupçon de profondeur, sans virer au multicolore. */
 .ob-feed-thumb {
   position: relative;
   display: flex;
@@ -721,43 +757,17 @@
   justify-content: center;
   height: clamp(96px, 12vh, 132px);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
   background:
-    radial-gradient(120% 130% at 22% 18%, rgba(124, 114, 235, 0.45), transparent 60%),
-    linear-gradient(150deg, #2a2560, #14112e 70%);
-}
-.ob-feed-thumb[data-tone='1'] {
-  background:
-    radial-gradient(120% 130% at 22% 18%, rgba(96, 128, 240, 0.5), transparent 60%),
-    linear-gradient(150deg, #1f2a63, #121026 72%);
-}
-.ob-feed-thumb[data-tone='2'] {
-  background:
-    radial-gradient(120% 130% at 22% 18%, rgba(78, 196, 209, 0.42), transparent 60%),
-    linear-gradient(150deg, #143b50, #101427 72%);
-}
-.ob-feed-thumb[data-tone='3'] {
-  background:
-    radial-gradient(120% 130% at 22% 18%, rgba(214, 108, 224, 0.42), transparent 60%),
-    linear-gradient(150deg, #3a1f5e, #15112c 72%);
-}
-.ob-feed-thumb[data-tone='4'] {
-  background:
-    radial-gradient(120% 130% at 22% 18%, rgba(90, 108, 245, 0.5), transparent 62%),
-    linear-gradient(150deg, #211a4f, #0f0d22 72%);
-}
-.ob-feed-thumb[data-tone='5'] {
-  background:
-    radial-gradient(120% 130% at 22% 18%, rgba(168, 120, 240, 0.46), transparent 60%),
-    linear-gradient(150deg, #341d63, #14112e 72%);
+    radial-gradient(130% 120% at 50% 0%, rgba(124, 114, 235, 0.1), transparent 70%),
+    #17142e;
 }
 .ob-feed-thumb-ic {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
-  color: #efeaff;
-  filter: drop-shadow(0 2px 10px rgba(94, 81, 241, 0.55));
+  width: 46px;
+  height: 46px;
+  color: #b7afe6;
 }
 .ob-feed-thumb-ic svg { width: 100%; height: 100%; }
 .ob-feed-thumb-cat {
@@ -769,11 +779,9 @@
   font-family: var(--font-ui);
   font-size: 11px;
   letter-spacing: 0.01em;
-  color: rgba(246, 246, 255, 0.85);
-  background: rgba(14, 12, 33, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  color: rgba(246, 246, 255, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 .ob-feed-card-body { padding: 14px 4px 0; }
 .ob-feed-card-name {
