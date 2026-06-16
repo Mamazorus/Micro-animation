@@ -634,7 +634,9 @@ function Onboarding() {
   const rebuildPreciseRef = useRef<(() => void) | null>(null)
   // settle(idx) : force l'état canonique d'une étape, exposé hors de l'effet pour
   // les sauts (« Passer » / « Feed → ») et la navigation en reduced-motion.
-  const settleRef = useRef<((idx: number) => void) | null>(null)
+  const settleRef      = useRef<((idx: number) => void) | null>(null)
+  const doneRef        = useRef<(() => void) | null>(null)
+  const commencerTlRef = useRef<gsap.core.Timeline | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const domainInitRef = useRef(true)
 
@@ -837,6 +839,7 @@ function Onboarding() {
     idxRef.current = startIdx
 
     const done = () => { animatingRef.current = false; applyNet(idxRef.current, true) }
+    doneRef.current = done
 
     gsap.set(frank, { transformOrigin: '50% 51%' })
     gsap.set(welcomeEls, { autoAlpha: 0, y: 22 })
@@ -899,7 +902,9 @@ function Onboarding() {
     }
     settleRef.current = settle
 
-    // Segment 0 — accueil → login : Frank nage vers le premier plan gauche
+    // Segment 0 — accueil → position login : Frank nage vers le premier plan gauche.
+    // Les éléments UI de l'écran login ne sont plus révélés ici ; goCommencer enchaîne
+    // directement sur le seg 1 (→ skill) sans s'arrêter sur login.
     const buildWelcomeLogin = () => {
       const h = window.innerHeight, w = window.innerWidth
       const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
@@ -916,10 +921,6 @@ function Onboarding() {
         ], curviness: 1.2, autoRotate: false },
         onStart: loginLean.start, onUpdate: loginLean.update }, 0.1)
       t.to(frank, { opacity: FRANK.login.opacity, duration: 0.8, ease: 'power1.out' }, 0.2)
-
-      t.to(loginHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.7)
-      t.to(loginFormEls, { autoAlpha: 1, y: 0, duration: 0.45, stagger: 0.1, ease: 'power2.out' }, 0.82)
-      t.to(loginBackRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.1)
 
       return t
     }
@@ -1607,6 +1608,40 @@ function Onboarding() {
   }
   const goToPresent = () => jumpTo('present')
 
+  const goCommencer = () => {
+    if (animatingRef.current || idxRef.current !== 0) return
+    animatingRef.current = true
+    idxRef.current = 2
+    setStep('skill')
+    if (reduceRef.current) { settleRef.current?.(2); return }
+    applyNet(2, false)
+
+    const frank = frankRef.current
+    const w = window.innerWidth, h = window.innerHeight
+    // divePath identique au seg 1 mais premier point = position welcome (pas login)
+    const divePath = [
+      { x: FRANK.welcome.x * w, y: FRANK.welcome.y * h },
+      { x: -0.05 * w,            y: 0.16 * h },
+      { x:  0.03 * w,            y: 0.52 * h },
+      { x: 0,                    y: 0.82 * h },
+    ]
+    const tl = gsap.timeline({ onComplete: doneRef.current ?? undefined, onReverseComplete: doneRef.current ?? undefined })
+    tl.to([btnRef.current, loginBtnRef.current, subRef.current, titleRef.current],
+      { autoAlpha: 0, y: 16, duration: 0.36, stagger: 0.07, ease: 'power2.in' }, 0)
+    tl.to(frank, { duration: 0.85, ease: 'power2.in',
+      motionPath: { path: divePath, curviness: 1.4, autoRotate: false } }, 0.08)
+    tl.to(frank, { opacity: 0, duration: 0.34, ease: 'power2.in' }, 0.55)
+    tl.set(frankVideoRef.current, { autoAlpha: 0 }, 0.9)
+    tl.set(frankSkillRef.current, { autoAlpha: 1 }, 0.9)
+    tl.to(frank, { duration: 0.95, ease: 'power3.out',
+      motionPath: { path: [{ x: 0, y: 0.82 * h }, { x: 0, y: FRANK.skill.y * h }], autoRotate: false },
+      scale: FRANK.skill.scale, rotation: FRANK.skill.rot }, 0.92)
+    tl.to(frank, { opacity: FRANK.skill.opacity, duration: 0.5, ease: 'power2.out' }, 0.95)
+    tl.to([skipRef.current, skillRef.current, navRef.current],
+      { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.1, ease: 'power2.out' }, 1.3)
+    commencerTlRef.current = tl
+  }
+
   const goLogin = () => {
     if (animatingRef.current) return
     if (idxRef.current !== 0) return
@@ -1624,6 +1659,17 @@ function Onboarding() {
   const goPrev = () => {
     const i = idxRef.current
     if (animatingRef.current || i <= 0) return
+    // Depuis skill (idx=2), si on est arrivé via « Commencer » (seg 0 sans UI login),
+    // on joue seg 1 reverse (skill→position login) puis seg 0 reverse (→welcome).
+    if (i === 2 && commencerTlRef.current) {
+      animatingRef.current = true
+      idxRef.current = 0
+      setStep('welcome')
+      if (reduceRef.current) { settleRef.current?.(0); return }
+      applyNet(0, false)
+      commencerTlRef.current.reverse()
+      return
+    }
     idxRef.current = i - 1
     setStep(STEPS[i - 1])
     if (reduceRef.current) { settleRef.current?.(i - 1); return }
@@ -1733,37 +1779,16 @@ function Onboarding() {
           Tu passes des heures à configurer ton IA pour qu'elle bosse comme tu veux&nbsp;?
         </p>
         <div className="ob-welcome-actions">
-          <button ref={loginBtnRef} className="ob-btn ob-btn--secondary ob-btn--login" type="button" onClick={goLogin}>Se connecter</button>
-          <button ref={btnRef} className="ob-btn" onClick={goNext}>Commencer</button>
+          <button ref={loginBtnRef} className="ob-btn ob-btn--secondary ob-btn--login" type="button" disabled>Se connecter</button>
+          <button ref={btnRef} className="ob-btn" onClick={goCommencer}>Commencer</button>
         </div>
       </div>
 
-      {/* Écran login — Se connecter */}
+      {/* Écran login — contenu supprimé (non utilisé dans le flow actuel) */}
       <div className="ob-screen ob-screen--ia">
-        <div ref={loginHeadRef} className="ob-ia-head">
-          <h1 className="ob-title ob-title--lg">Bon retour parmi nous.</h1>
-          <p className="ob-subtitle">Connecte-toi à ton compte.</p>
-        </div>
-        <form ref={loginFormRef} className="ob-pres-form" onSubmit={e => { e.preventDefault(); if (loginValid) jumpTo('feed') }}>
-          <div className="ob-field">
-            <label className="ob-pr-label" htmlFor="ob-login-email">Email</label>
-            <input id="ob-login-email" className="ob-input" type="email" autoComplete="email"
-              placeholder="Ex : annie.leroy@email.fr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
-          </div>
-          <div className="ob-field">
-            <label className="ob-pr-label" htmlFor="ob-login-pwd">Mot de passe</label>
-            <div className="ob-pwd-wrap">
-              <input id="ob-login-pwd" className="ob-input ob-input--pwd" type={showLoginPwd ? 'text' : 'password'} autoComplete="current-password"
-                value={loginPwd} onChange={e => setLoginPwd(e.target.value)} />
-              <button type="button" className="ob-pwd-toggle" onClick={() => setShowLoginPwd(v => !v)}
-                aria-label={showLoginPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} aria-pressed={showLoginPwd}>
-                {showLoginPwd ? <IconEyeOff /> : <IconEye />}
-              </button>
-            </div>
-          </div>
-          <button type="submit" className="ob-btn ob-login-submit" disabled={!loginValid}>Se connecter</button>
-        </form>
-        <div ref={loginBackRef} className="ob-pres-back" />
+        <div ref={loginHeadRef} />
+        <form ref={loginFormRef} />
+        <div ref={loginBackRef} />
       </div>
 
       {/* Écran 2 — Un clic suffit */}
