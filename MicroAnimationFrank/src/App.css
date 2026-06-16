@@ -162,8 +162,17 @@
   padding: 0 40px 15vh;
 }
 
-.ob-screen--welcome .ob-btn {
+.ob-welcome-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
   margin-top: 14px;
+}
+
+.ob-btn--login {
+  font-size: 15px;
+  padding: 15px 26px;
 }
 
 .ob-title {
@@ -1056,6 +1065,16 @@
   background-clip: padding-box;
 }
 
+/* Bouton submit du formulaire login */
+.ob-login-submit {
+  width: 100%;
+  margin-top: 8px;
+}
+.ob-login-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* Bouton secondaire (Retour) : contour violet clair, fond transparent */
 .ob-btn--secondary {
   background: transparent;
@@ -1761,6 +1780,10 @@
   transition:
     opacity 0.32s cubic-bezier(0.55, 0.085, 0.68, 0.53),
     transform 0.36s cubic-bezier(0.55, 0.085, 0.68, 0.53);
+}
+/* Combobox toujours dans le DOM mais "Autre" non sélectionné : ni espace ni interaction */
+.ob-combo.is-collapsed {
+  display: none;
 }
 @keyframes ob-combo-in {
   from { opacity: 0; transform: translateY(-10px); }

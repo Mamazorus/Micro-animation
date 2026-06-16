@@ -7,7 +7,7 @@ import './App.css'
 
 gsap.registerPlugin(MotionPathPlugin)
 
-const STEPS = ['welcome', 'skill', 'why', 'ia', 'specialite', 'precise', 'present', 'password', 'plan', 'feed'] as const
+const STEPS = ['welcome', 'login', 'skill', 'why', 'ia', 'specialite', 'precise', 'present', 'password', 'plan', 'feed'] as const
 type Step = (typeof STEPS)[number]
 
 type FrankState = { x: number; y: number; scale: number; rot: number; opacity: number }
@@ -75,6 +75,8 @@ const fs = (x: number, y: number, visualScale: number, rot: number): FrankState 
 const FRANK: Record<'intro' | Step, FrankState> = {
   intro:   fs(0,     0,     16,   0),   // gros plan d'ouverture ; lueur coupée pendant l'intro (is-intro) → plafond relevé, mais éviter > ~18
   welcome: fs(0,    -0.16,  1,    0),
+  // Écran login : Frank au premier plan gauche, face caméra (comme present).
+  login:   fs(-0.25, 0.06,  1.65, 0),
   skill:   fs(0,     0.41,  2.3,  0),
   why:     fs(0.34, -0.32,  0.62, -4),
   ia:      fs(-0.28, 0.22,  1.5,  5),
@@ -431,9 +433,10 @@ function startFloat(el: gsap.TweenTarget) {
    `active` (= écran courant) pilote le fondu de sortie quand on quitte l'écran :
    GSAP n'anime pas ce bloc, donc on le masque nous-mêmes le temps de la transition. */
 function OtherCombobox({
-  active, placeholder, suggestions, values, onAdd, onRemove,
+  active, visible = true, placeholder, suggestions, values, onAdd, onRemove,
 }: {
   active: boolean
+  visible?: boolean
   placeholder: string
   suggestions: string[]
   values: string[]
@@ -501,6 +504,7 @@ function OtherCombobox({
     } else if (e.key === 'Escape') { setOpen(false) }
   }
 
+  if (!visible) return <div className="ob-combo is-collapsed" aria-hidden="true" />
   return (
     <div ref={wrapRef} className={`ob-combo${active ? '' : ' is-hidden'}`}>
       <div className="ob-combo-field">
@@ -564,9 +568,14 @@ function Onboarding() {
   const frankSkillRef = useRef<HTMLVideoElement>(null)
   const bgDecoRef = useRef<HTMLDivElement>(null)
   // Écran 1 — accueil
-  const titleRef = useRef<HTMLHeadingElement>(null)
-  const subRef   = useRef<HTMLParagraphElement>(null)
-  const btnRef   = useRef<HTMLButtonElement>(null)
+  const titleRef    = useRef<HTMLHeadingElement>(null)
+  const subRef      = useRef<HTMLParagraphElement>(null)
+  const btnRef      = useRef<HTMLButtonElement>(null)
+  const loginBtnRef = useRef<HTMLButtonElement>(null)
+  // Écran login — « Se connecter »
+  const loginHeadRef = useRef<HTMLDivElement>(null)
+  const loginFormRef = useRef<HTMLFormElement>(null)
+  const loginBackRef = useRef<HTMLDivElement>(null)
   // Écran 2 — « Un clic suffit »
   const skipRef  = useRef<HTMLButtonElement>(null)
   const skillRef = useRef<HTMLDivElement>(null)
@@ -632,7 +641,7 @@ function Onboarding() {
   // Deep links de prévisualisation : ?ob=skill | ?ob=why (état figé), ?frz=0..1 (scrub)
   const [step, setStep] = useState<Step>(() => {
     const ob = new URLSearchParams(window.location.search).get('ob')
-    return ob === 'feed' ? 'feed' : ob === 'plan' ? 'plan' : ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+    return ob === 'feed' ? 'feed' : ob === 'plan' ? 'plan' : ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : ob === 'login' ? 'login' : 'welcome'
   })
   const [selectedAis, setSelectedAis] = useState<Set<string>>(() => new Set())
   const [selectedSpecs, setSelectedSpecs] = useState<Set<Spec>>(() => new Set())
@@ -650,6 +659,10 @@ function Onboarding() {
   // Visibilité des champs mot de passe (toggle œil), indépendante par champ.
   const [showPwd, setShowPwd] = useState(false)
   const [showPwd2, setShowPwd2] = useState(false)
+  // Formulaire « Se connecter » (contrôlé)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPwd, setLoginPwd] = useState('')
+  const [showLoginPwd, setShowLoginPwd] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   // Feed : filtres choisis (chips actifs) + affichage de filtres supplémentaires.
   const [feedFilters, setFeedFilters] = useState<Set<string>>(() => new Set())
@@ -663,6 +676,7 @@ function Onboarding() {
   const [pickerHover, setPickerHover] = useState<string | null>(null) // mascotte survolée → libellé dynamique
 
   // Validations dérivées (recalculées à chaque rendu).
+  const loginValid = loginEmail.trim().length > 0 && loginPwd.length > 0
   // Accès à « Créer ton mot de passe » : les 2 champs remplis + CGU cochées.
   const presValid = presName.trim() !== '' && /^\S+@\S+\.\S+$/.test(presEmail) && presCgu
   const pwdReqs = {
@@ -675,8 +689,9 @@ function Onboarding() {
   const pwdValid = pwdScore === 3 && presPwd !== '' && presPwd === presPwd2
 
   // Barre de nav persistante : libellé + état (désactivé) selon l'étape courante.
-  const navLabel = step === 'present' || step === 'password' ? 'Enregistrer' : 'Suivant'
+  const navLabel = step === 'login' ? 'Se connecter' : step === 'present' || step === 'password' ? 'Enregistrer' : 'Suivant'
   const navDisabled =
+    step === 'login' ? !loginValid :
     step === 'present' ? !presValid :
     step === 'password' ? !pwdValid :
     step === 'plan' ? !selectedPlan : false
@@ -791,7 +806,7 @@ function Onboarding() {
     // Suréchantillonnage : .ob-frank est layouté FRANK_SS× plus grand (cf. App.css + FRANK).
     frank.style.setProperty('--ss', String(FRANK_SS))
 
-    const welcomeEls = [titleRef.current, subRef.current, btnRef.current]
+    const welcomeEls = [titleRef.current, subRef.current, btnRef.current, loginBtnRef.current]
     const skillEls   = [skipRef.current, skillRef.current, navRef.current]
     const whyEls     = [whySkipRef.current, whyHeadRef.current, whyNavRef.current]
     const whyCards   = whyCardsRef.current ? Array.from(whyCardsRef.current.children) : []
@@ -804,6 +819,7 @@ function Onboarding() {
     const prChips    = prGroupsRef.current ? Array.from(prGroupsRef.current.querySelectorAll('.ob-ai-chip')) : []
     const presFormEls = presFormRef.current ? Array.from(presFormRef.current.children) : []
     const pwdFormEls = pwdFormRef.current ? Array.from(pwdFormRef.current.children) : []
+    const loginFormEls = loginFormRef.current ? Array.from(loginFormRef.current.children) : []
     const planCards = planCardsRef.current ? Array.from(planCardsRef.current.children) : []
     // Le feed est filtré dynamiquement (les cartes se montent/démontent selon les
     // filtres) : on ne capture donc PAS les cartes ici. On anime le CONTENEUR de la
@@ -816,7 +832,7 @@ function Onboarding() {
     reduceRef.current = reduce
 
     const startStep: Step =
-      ob === 'feed' ? 'feed' : ob === 'plan' ? 'plan' : ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : 'welcome'
+      ob === 'feed' ? 'feed' : ob === 'plan' ? 'plan' : ob === 'password' ? 'password' : ob === 'present' ? 'present' : ob === 'precise' ? 'precise' : ob === 'specialite' ? 'specialite' : ob === 'ia' ? 'ia' : ob === 'why' ? 'why' : ob === 'skill' ? 'skill' : ob === 'login' ? 'login' : 'welcome'
     const startIdx = STEPS.indexOf(startStep)
     idxRef.current = startIdx
 
@@ -833,6 +849,8 @@ function Onboarding() {
     gsap.set([prHeadRef.current, ...prEls], { autoAlpha: 0, y: 24 })
     gsap.set(prLabels, { autoAlpha: 0, y: 16 })
     gsap.set(prChips, { autoAlpha: 0, y: 20, scale: 0.9 })
+    gsap.set([loginHeadRef.current, loginBackRef.current], { autoAlpha: 0, y: 24 })
+    gsap.set(loginFormEls, { autoAlpha: 0, y: 20 })
     gsap.set([presHeadRef.current, presBackRef.current], { autoAlpha: 0, y: 24 })
     gsap.set(presFormEls, { autoAlpha: 0, y: 20 })
     gsap.set([pwdHeadRef.current, pwdBackRef.current], { autoAlpha: 0, y: 24 })
@@ -881,19 +899,45 @@ function Onboarding() {
     }
     settleRef.current = settle
 
-    // Segment 0 — accueil → « Un clic suffit » : la plongée (inchangée)
-    const buildWelcomeSkill = () => {
+    // Segment 0 — accueil → login : Frank nage vers le premier plan gauche
+    const buildWelcomeLogin = () => {
+      const h = window.innerHeight, w = window.innerWidth
+      const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
+
+      t.to([btnRef.current, loginBtnRef.current, subRef.current, titleRef.current],
+        { autoAlpha: 0, y: 16, duration: 0.36, stagger: 0.07, ease: 'power2.in' }, 0)
+
+      const loginLean = makeLean(frank, FRANK.welcome.rot, FRANK.login.rot, true)
+      t.to(frank, { duration: 1.2, ease: 'sine.inOut',
+        scale: FRANK.login.scale, rotation: FRANK.login.rot,
+        motionPath: { path: [
+          { x: FRANK.welcome.x * w, y: FRANK.welcome.y * h },
+          { x: FRANK.login.x * w,   y: FRANK.login.y * h },
+        ], curviness: 1.2, autoRotate: false },
+        onStart: loginLean.start, onUpdate: loginLean.update }, 0.1)
+      t.to(frank, { opacity: FRANK.login.opacity, duration: 0.8, ease: 'power1.out' }, 0.2)
+
+      t.to(loginHeadRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.7)
+      t.to(loginFormEls, { autoAlpha: 1, y: 0, duration: 0.45, stagger: 0.1, ease: 'power2.out' }, 0.82)
+      t.to(loginBackRef.current, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 1.1)
+
+      return t
+    }
+
+    // Segment 1 — login → « Un clic suffit » : la plongée depuis la position login
+    const buildLoginSkill = () => {
       const h = window.innerHeight, w = window.innerWidth
       const t = gsap.timeline({ paused: true, onComplete: done, onReverseComplete: done })
       const divePath = [
-        { x: 0,         y: FRANK.welcome.y * h },
-        { x: -0.05 * w, y: 0.16 * h },
-        { x:  0.03 * w, y: 0.52 * h },
-        { x: 0,         y: 0.82 * h },          // sort par le bas
+        { x: FRANK.login.x * w, y: FRANK.login.y * h },
+        { x: -0.05 * w,          y: 0.16 * h },
+        { x:  0.03 * w,          y: 0.52 * h },
+        { x: 0,                  y: 0.82 * h },  // sort par le bas
       ]
-      t.to([btnRef.current, subRef.current, titleRef.current],
-        { autoAlpha: 0, y: 16, duration: 0.36, stagger: 0.07, ease: 'power2.in' }, 0)
-      const wsLeanOut = makeLean(frank, FRANK.welcome.rot, FRANK.welcome.rot, false)
+      t.to(loginBackRef.current, { autoAlpha: 0, y: 16, duration: 0.3, ease: 'power2.in' }, 0)
+      t.to(loginHeadRef.current, { autoAlpha: 0, y: -16, duration: 0.34, ease: 'power2.in' }, 0)
+      t.to(loginFormEls, { autoAlpha: 0, y: 16, duration: 0.36, stagger: 0.05, ease: 'power2.in' }, 0)
+      const wsLeanOut = makeLean(frank, FRANK.login.rot, FRANK.login.rot, false)
       t.to(frank, { duration: 0.85, ease: 'power2.in',
         motionPath: { path: divePath, curviness: 1.4, autoRotate: false },
         onStart: wsLeanOut.start, onUpdate: wsLeanOut.update }, 0.08)
@@ -1227,7 +1271,7 @@ function Onboarding() {
 
     const buildSegments = () => {
       segsRef.current.forEach(t => t.kill())
-      segsRef.current = [buildWelcomeSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite(), buildSpecialitePrecise(), buildPrecisePresent(), buildPresentPassword(), buildPasswordPlan(), buildPlanFeed()]
+      segsRef.current = [buildWelcomeLogin(), buildLoginSkill(), buildSkillWhy(), buildWhyIa(), buildIaSpecialite(), buildSpecialitePrecise(), buildPrecisePresent(), buildPresentPassword(), buildPasswordPlan(), buildPlanFeed()]
     }
 
     // Quand le domaine change, l'écran « Plus précisément ? » reçoit de nouveaux
@@ -1266,6 +1310,7 @@ function Onboarding() {
       else if (startStep === 'ia') gsap.set([iaHeadRef.current, ...iaEls, ...iaChips], { autoAlpha: 1, y: 0, scale: 1 })
       else if (startStep === 'specialite') gsap.set([spHeadRef.current, ...spEls, ...spCards], { autoAlpha: 1, y: 0, scale: 1 })
       else if (startStep === 'precise') gsap.set([prHeadRef.current, ...prEls, ...prLabels, ...prChips], { autoAlpha: 1, y: 0, scale: 1 })
+      else if (startStep === 'login') gsap.set([loginHeadRef.current, loginBackRef.current, ...loginFormEls], { autoAlpha: 1, y: 0 })
       else if (startStep === 'present') gsap.set([presHeadRef.current, presBackRef.current, ...presFormEls], { autoAlpha: 1, y: 0 })
       else if (startStep === 'password') gsap.set([pwdHeadRef.current, pwdBackRef.current, ...pwdFormEls], { autoAlpha: 1, y: 0 })
       else if (startStep === 'plan') gsap.set([planHeadRef.current, planNavRef.current, ...planCards], { autoAlpha: 1, y: 0, scale: 1 })
@@ -1561,6 +1606,17 @@ function Onboarding() {
     settleRef.current?.(targetIdx)
   }
   const goToPresent = () => jumpTo('present')
+
+  const goLogin = () => {
+    if (animatingRef.current) return
+    if (idxRef.current !== 0) return
+    idxRef.current = 1
+    setStep('login')
+    if (reduceRef.current) { settleRef.current?.(1); return }
+    animatingRef.current = true
+    applyNet(1, false)
+    segsRef.current[0].play()
+  }
   // Raccourci de dév « Feed → » masqué (cf. rendu plus bas). Décommenter avec le
   // bouton pour réactiver le saut direct vers le feed.
   // const goToFeed = () => jumpTo('feed')
@@ -1676,7 +1732,38 @@ function Onboarding() {
         <p ref={subRef} className="ob-subtitle">
           Tu passes des heures à configurer ton IA pour qu'elle bosse comme tu veux&nbsp;?
         </p>
-        <button ref={btnRef} className="ob-btn" onClick={goNext}>Commencer</button>
+        <div className="ob-welcome-actions">
+          <button ref={loginBtnRef} className="ob-btn ob-btn--secondary ob-btn--login" type="button" onClick={goLogin}>Se connecter</button>
+          <button ref={btnRef} className="ob-btn" onClick={goNext}>Commencer</button>
+        </div>
+      </div>
+
+      {/* Écran login — Se connecter */}
+      <div className="ob-screen ob-screen--ia">
+        <div ref={loginHeadRef} className="ob-ia-head">
+          <h1 className="ob-title ob-title--lg">Bon retour parmi nous.</h1>
+          <p className="ob-subtitle">Connecte-toi à ton compte.</p>
+        </div>
+        <form ref={loginFormRef} className="ob-pres-form" onSubmit={e => { e.preventDefault(); if (loginValid) jumpTo('feed') }}>
+          <div className="ob-field">
+            <label className="ob-pr-label" htmlFor="ob-login-email">Email</label>
+            <input id="ob-login-email" className="ob-input" type="email" autoComplete="email"
+              placeholder="Ex : annie.leroy@email.fr" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} />
+          </div>
+          <div className="ob-field">
+            <label className="ob-pr-label" htmlFor="ob-login-pwd">Mot de passe</label>
+            <div className="ob-pwd-wrap">
+              <input id="ob-login-pwd" className="ob-input ob-input--pwd" type={showLoginPwd ? 'text' : 'password'} autoComplete="current-password"
+                value={loginPwd} onChange={e => setLoginPwd(e.target.value)} />
+              <button type="button" className="ob-pwd-toggle" onClick={() => setShowLoginPwd(v => !v)}
+                aria-label={showLoginPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'} aria-pressed={showLoginPwd}>
+                {showLoginPwd ? <IconEyeOff /> : <IconEye />}
+              </button>
+            </div>
+          </div>
+          <button type="submit" className="ob-btn ob-login-submit" disabled={!loginValid}>Se connecter</button>
+        </form>
+        <div ref={loginBackRef} className="ob-pres-back" />
       </div>
 
       {/* Écran 2 — Un clic suffit */}
@@ -1741,16 +1828,15 @@ function Onboarding() {
               )
             })}
           </div>
-          {selectedAis.has('Autre') && (
-            <OtherCombobox
-              active={step === 'ia'}
-              placeholder="Saisis ton IA"
-              suggestions={AI_MORE}
-              values={customAiTokens}
-              onAdd={addCustomAi}
-              onRemove={removeCustomAi}
-            />
-          )}
+          <OtherCombobox
+            visible={selectedAis.has('Autre')}
+            active={step === 'ia'}
+            placeholder="Saisis ton IA"
+            suggestions={AI_MORE}
+            values={customAiTokens}
+            onAdd={addCustomAi}
+            onRemove={removeCustomAi}
+          />
         </div>
         <div ref={iaNavRef} className="ob-nav" />
       </div>
@@ -1780,16 +1866,15 @@ function Onboarding() {
               )
             })}
           </div>
-          {selectedSpecs.has('autre') && (
-            <OtherCombobox
-              active={step === 'specialite'}
-              placeholder="Saisis ton domaine"
-              suggestions={DOMAIN_MORE}
-              values={[...customSpecs]}
-              onAdd={addCustomSpec}
-              onRemove={removeCustomSpec}
-            />
-          )}
+          <OtherCombobox
+            visible={selectedSpecs.has('autre')}
+            active={step === 'specialite'}
+            placeholder="Saisis ton domaine"
+            suggestions={DOMAIN_MORE}
+            values={[...customSpecs]}
+            onAdd={addCustomSpec}
+            onRemove={removeCustomSpec}
+          />
         </div>
         <div ref={spNavRef} className="ob-nav" />
       </div>
@@ -2113,7 +2198,9 @@ function Onboarding() {
       {step !== 'welcome' && step !== 'feed' && (
         <div className="ob-nav ob-nav--persist">
           <button className="ob-btn ob-btn--secondary" onClick={goPrev}>Retour</button>
-          <button className="ob-btn" onClick={goNext} disabled={navDisabled}>{navLabel}</button>
+          {step !== 'login' && (
+            <button className="ob-btn" onClick={goNext} disabled={navDisabled}>{navLabel}</button>
+          )}
         </div>
       )}
     </div>
