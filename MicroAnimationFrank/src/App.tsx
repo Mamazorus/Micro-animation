@@ -662,9 +662,8 @@ function Onboarding() {
   const [showPwd, setShowPwd] = useState(false)
   const [showPwd2, setShowPwd2] = useState(false)
   // Formulaire « Se connecter » (contrôlé)
-  const [loginEmail, setLoginEmail] = useState('')
-  const [loginPwd, setLoginPwd] = useState('')
-  const [showLoginPwd, setShowLoginPwd] = useState(false)
+  const [loginEmail] = useState('')
+  const [loginPwd] = useState('')
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   // Feed : filtres choisis (chips actifs) + affichage de filtres supplémentaires.
   const [feedFilters, setFeedFilters] = useState<Set<string>>(() => new Set())
@@ -1642,16 +1641,6 @@ function Onboarding() {
     commencerTlRef.current = tl
   }
 
-  const goLogin = () => {
-    if (animatingRef.current) return
-    if (idxRef.current !== 0) return
-    idxRef.current = 1
-    setStep('login')
-    if (reduceRef.current) { settleRef.current?.(1); return }
-    animatingRef.current = true
-    applyNet(1, false)
-    segsRef.current[0].play()
-  }
   // Raccourci de dév « Feed → » masqué (cf. rendu plus bas). Décommenter avec le
   // bouton pour réactiver le saut direct vers le feed.
   // const goToFeed = () => jumpTo('feed')
